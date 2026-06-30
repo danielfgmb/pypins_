@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/figures/
+notebooks/model/
+
+# Saved model checkpoints
+*.pt
+*.pth
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/
+memory/
+
+# Markdown (keep README only)
+*.md
+!README.md

@@ -1,0 +1,335 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Chapter 1 — TD-PINNs on **2-D** Burgers (just for the hahas)\n",
+    "\n",
+    "Quick check that the framework handles a 2-D problem. Scalar 2-D viscous Burgers on $[0,1]^2$:\n",
+    "\n",
+    "$$u_t + u\\,(u_x + u_y) = \\nu\\,(u_{xx} + u_{yy}).$$\n",
+    "\n",
+    "**Exact solution (ground truth).** A travelling diagonal front\n",
+    "\n",
+    "$$u(x,y,t) = \\frac{1}{1 + \\exp\\!\\big(\\frac{x+y-c-t}{2\\nu}\\big)}$$\n",
+    "\n",
+    "solves it exactly (verify by substitution: $u_t=u(1-u)/2\\nu$, $u_x=u_y=-u(1-u)/2\\nu$, etc.). The front\n",
+    "sits on $x+y = c+t$ and moves along the diagonal.\n",
+    "\n",
+    "**Why no Dirichlet BC.** The front *moves*, so the true boundary values change in time, but the\n",
+    "framework's TD-PINNs applies a single fixed `u_bc` for all steps — imposing the $t{=}0$ values would be\n",
+    "wrong later. The clean fix that *works here* is to drop the spatial BC (`bc_weight = 0`) and let the\n",
+    "**initial condition + PDE residual + Crank–Nicolson step-continuity** determine the evolution. (Imposing\n",
+    "the stale $t{=}0$ BC roughly triples the final $L_\\infty$ — confirmed before writing this notebook.)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import sys, os, time\n",
+    "\n",
+    "ROOT = '/home/df.gomezb/Tesis'\n",
+    "if ROOT not in sys.path:\n",
+    "    sys.path.insert(0, ROOT)\n",
+    "\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import torch\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "from pinns_framework import (\n",
+    "    PINArchitecture, PINSpatialDimension, PINLossFunction, PINTrainer,\n",
+    "    compute_metrics, collocation_uniform,\n",
+    ")\n",
+    "\n",
+    "torch.manual_seed(0)\n",
+    "np.random.seed(0)\n",
+    "\n",
+    "plt.rcParams.update({\n",
+    "    'font.family'     : 'serif',\n",
+    "    'font.serif'      : ['DejaVu Serif'],\n",
+    "    'mathtext.fontset': 'cm',\n",
+    "    'font.size'       : 12,\n",
+    "    'axes.titlesize'  : 12,\n",
+    "    'axes.labelsize'  : 11,\n",
+    "})\n",
+    "\n",
+    "DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n",
+    "FIGDIR = 'figs'; os.makedirs(FIGDIR, exist_ok=True)\n",
+    "print('torch:', torch.__version__, '| device:', DEVICE)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 1. Problem setup — exact travelling front"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "NU = 0.1\n",
+    "L  = 1.0\n",
+    "C  = 0.5            # initial front position: x + y = C\n",
+    "\n",
+    "def exact_np(t, x, y):\n",
+    "    return 1.0 / (1.0 + np.exp((x + y - C - t) / (2 * NU)))\n",
+    "\n",
+    "gx = np.linspace(0, L, 120)\n",
+    "XX, YY = np.meshgrid(gx, gx, indexing='ij')\n",
+    "fig, axes = plt.subplots(1, 3, figsize=(13, 3.8))\n",
+    "for ax, t in zip(axes, [0.0, 0.25, 0.5]):\n",
+    "    im = ax.imshow(exact_np(t, XX, YY).T, origin='lower', extent=[0, L, 0, L],\n",
+    "                   vmin=0, vmax=1, cmap='viridis')\n",
+    "    ax.set_title(f't = {t:.2f}'); ax.set_xlabel('x'); ax.set_ylabel('y')\n",
+    "    fig.colorbar(im, ax=ax, fraction=0.046)\n",
+    "fig.suptitle('Exact 2-D Burgers front  u(x,y,t)', fontsize=13)\n",
+    "plt.tight_layout(); plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 2. Configuration"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "PARAMS_ARCH = {'layers': (2, 64, 64, 64, 1), 'activation': 'tanh'}   # input (x, y)\n",
+    "\n",
+    "DT     = 0.1\n",
+    "T_END  = 0.5\n",
+    "NT     = round(T_END / DT)\n",
+    "times  = [k * DT for k in range(NT + 1)]\n",
+    "\n",
+    "EPOCHS     = 8000\n",
+    "TOLERANCE  = 1e-4\n",
+    "LR, MAX_LR, MIN_LR = 5e-3, 5e-3, 1e-6\n",
+    "IC_WEIGHT  = 10.0\n",
+    "BC_WEIGHT  = 0.0      # no spatial Dirichlet BC (front-driven, time-varying)\n",
+    "PDE_WEIGHT = 1.0\n",
+    "N_COLLOC   = 3000     # interior collocation points (2-D)\n",
+    "N_EVAL     = 150      # per-axis -> N_EVAL^2 evaluation grid\n",
+    "\n",
+    "print(f'{NT} steps, dt={DT}, T={T_END}  |  front sweeps x+y from {C} to {C+T_END}')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 3. IC, 2-D Crank–Nicolson residual, exact evaluator\n",
+    "\n",
+    "$S(w) = w\\,(w_x + w_y) - \\nu\\,(w_{xx} + w_{yy})$; the residual is $\\frac{u-u^{t-1}}{\\Delta t} + \\tfrac12[S(u)+S(u^{t-1})]$."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "x_dim = PINSpatialDimension('x', domain=(0.0, L), n_colloc=N_COLLOC)\n",
+    "y_dim = PINSpatialDimension('y', domain=(0.0, L), n_colloc=N_COLLOC)\n",
+    "\n",
+    "# IC sampled from the exact solution on a grid\n",
+    "g_ic = np.linspace(0, L, 51)\n",
+    "Xi, Yi = np.meshgrid(g_ic, g_ic, indexing='ij')\n",
+    "pts_ic = np.stack([Xi.ravel(), Yi.ravel()], axis=1)\n",
+    "x_ic = torch.tensor(pts_ic, dtype=torch.float32)\n",
+    "u_ic = torch.tensor(exact_np(0, pts_ic[:, 0], pts_ic[:, 1]), dtype=torch.float32).unsqueeze(1)\n",
+    "\n",
+    "# BC placeholders (unused since BC_WEIGHT = 0, but fit() requires the arguments)\n",
+    "x_bc = torch.tensor([[0.0, 0.0], [L, L]], dtype=torch.float32)\n",
+    "u_bc = torch.zeros(2, 1, dtype=torch.float32)\n",
+    "\n",
+    "def burgers2d_residual(u, u_prev, x, dt, nu):\n",
+    "    def S(w):\n",
+    "        g    = torch.autograd.grad(w.sum(), x, create_graph=True)[0]   # (N, 2)\n",
+    "        w_x  = g[:, 0:1]; w_y = g[:, 1:2]\n",
+    "        w_xx = torch.autograd.grad(w_x.sum(), x, create_graph=True)[0][:, 0:1]\n",
+    "        w_yy = torch.autograd.grad(w_y.sum(), x, create_graph=True)[0][:, 1:2]\n",
+    "        return w * (w_x + w_y) - nu * (w_xx + w_yy)\n",
+    "    return (u - u_prev.detach()) / dt + 0.5 * (S(u) + S(u_prev).detach())\n",
+    "\n",
+    "loss_fn = PINLossFunction([x_dim, y_dim], burgers2d_residual)\n",
+    "\n",
+    "def exact_fn(t, xy):\n",
+    "    p = xy.detach().cpu().numpy()\n",
+    "    u = exact_np(t, p[:, 0], p[:, 1])\n",
+    "    return torch.tensor(u, dtype=torch.float32, device=xy.device).unsqueeze(1)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 4. Train TD-PINNs (Crank–Nicolson, 2-D)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "torch.manual_seed(0); np.random.seed(0)\n",
+    "net = PINArchitecture('MLP', PARAMS_ARCH)\n",
+    "trainer = PINTrainer(\n",
+    "    net=net, scheme='TD-PINNS', loss_fn=loss_fn, spatial_dims=[x_dim, y_dim],\n",
+    "    epochs=EPOCHS, dt=DT, lr=LR, max_lr=MAX_LR, min_lr=MIN_LR, tolerance=TOLERANCE,\n",
+    "    ic_weight=IC_WEIGHT, bc_weight=BC_WEIGHT, pde_weight=PDE_WEIGHT,\n",
+    "    collocation_fn=collocation_uniform, device=DEVICE, verbose=True, log_every=2000,\n",
+    ")\n",
+    "t0 = time.perf_counter()\n",
+    "nets = trainer.fit(x_ic=x_ic, u_ic=u_ic, x_bc=x_bc, u_bc=u_bc, T=T_END, nu=NU)\n",
+    "wall = time.perf_counter() - t0\n",
+    "print(f'\\ndone | per-step epochs = {[h[\"epochs\"] for h in trainer.step_history]} | wall {wall:.1f}s')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 5. Errors vs exact — $L_1$, $L_2$, $L_\\infty$ per time level\n",
+    "\n",
+    "Errors are integrated on a dense $N_{eval}^2$ grid by `compute_metrics`; $L_1$ (mean-abs) is added."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df = compute_metrics(nets, times, [x_dim, y_dim], n_eval=N_EVAL,\n",
+    "                     exact_fn=exact_fn, device=DEVICE)\n",
+    "\n",
+    "# add L1 per level (compute_metrics returns L2 / Linf)\n",
+    "from pinns_framework import make_eval_grid\n",
+    "xe = make_eval_grid([x_dim, y_dim], N_EVAL).to(DEVICE)\n",
+    "l1 = []\n",
+    "for t, net_t in zip(times, nets):\n",
+    "    net_t.eval()\n",
+    "    with torch.no_grad():\n",
+    "        up = net_t(xe)\n",
+    "        if up.dim() == 1:\n",
+    "            up = up.unsqueeze(1)\n",
+    "    l1.append(float((up - exact_fn(t, xe)).abs().mean()))\n",
+    "df['L1'] = l1\n",
+    "\n",
+    "pd.set_option('display.float_format', '{:.4e}'.format)\n",
+    "print(df[['L1', 'L2', 'Linf']].to_string())\n",
+    "print(f'\\nmean  L1={df[\"L1\"].mean():.3e}  L2={df[\"L2\"].mean():.3e}  Linf={df[\"Linf\"].mean():.3e}')\n",
+    "\n",
+    "fig, ax = plt.subplots(figsize=(7.5, 4.5))\n",
+    "for col, mk, lab in [('L1', 'o', r'$L_1$'), ('L2', 's', r'$L_2$'), ('Linf', '^', r'$L_\\infty$')]:\n",
+    "    ax.semilogy(times, df[col].values, '-', marker=mk, ms=6, lw=1.5, label=lab)\n",
+    "ax.set_xlabel('t'); ax.set_ylabel('error vs exact')\n",
+    "ax.set_title('2-D Burgers (TD-PINNs / CN) — error per time level')\n",
+    "ax.grid(True, which='both', alpha=0.3); ax.legend()\n",
+    "plt.tight_layout()\n",
+    "fig.savefig(os.path.join(FIGDIR, 'burgers2d_errors.pdf'), bbox_inches='tight')\n",
+    "print('saved ->', os.path.join(FIGDIR, 'burgers2d_errors.pdf'))\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 6. 2-D field comparison — exact vs predicted vs error"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "ng = 120\n",
+    "gv = np.linspace(0, L, ng)\n",
+    "GX, GY = np.meshgrid(gv, gv, indexing='ij')\n",
+    "grid = torch.tensor(np.stack([GX.ravel(), GY.ravel()], axis=1), dtype=torch.float32).to(DEVICE)\n",
+    "\n",
+    "def pred_field(k):\n",
+    "    net_k = nets[k].eval()\n",
+    "    with torch.no_grad():\n",
+    "        return net_k(grid).cpu().numpy().reshape(ng, ng)\n",
+    "\n",
+    "show_idx = [NT // 2, NT]          # mid and final time\n",
+    "fig, axes = plt.subplots(len(show_idx), 3, figsize=(13, 4.2 * len(show_idx)))\n",
+    "for row, k in enumerate(show_idx):\n",
+    "    t = times[k]\n",
+    "    u_ex = exact_np(t, GX, GY)\n",
+    "    u_pr = pred_field(k)\n",
+    "    err  = np.abs(u_pr - u_ex)\n",
+    "    for col, (field, title, kw) in enumerate([\n",
+    "        (u_ex, f'exact  (t={t:.2f})',      dict(vmin=0, vmax=1, cmap='viridis')),\n",
+    "        (u_pr, f'TD-PINNs  (t={t:.2f})',   dict(vmin=0, vmax=1, cmap='viridis')),\n",
+    "        (err,  f'|error|  (t={t:.2f})',    dict(cmap='magma')),\n",
+    "    ]):\n",
+    "        ax = axes[row, col]\n",
+    "        im = ax.imshow(field.T, origin='lower', extent=[0, L, 0, L], **kw)\n",
+    "        ax.set_title(title); ax.set_xlabel('x'); ax.set_ylabel('y')\n",
+    "        fig.colorbar(im, ax=ax, fraction=0.046)\n",
+    "fig.suptitle('2-D Burgers: exact vs TD-PINNs prediction vs pointwise error', fontsize=13)\n",
+    "plt.tight_layout()\n",
+    "fig.savefig(os.path.join(FIGDIR, 'burgers2d_fields.pdf'), bbox_inches='tight')\n",
+    "print('saved ->', os.path.join(FIGDIR, 'burgers2d_fields.pdf'))\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 7. Notes\n",
+    "\n",
+    "- The framework handles 2-D out of the box: two `PINSpatialDimension`s, `collocation_uniform` samples\n",
+    "  in 2-D, and `compute_metrics` integrates on the $N_{eval}^2$ grid.\n",
+    "- Time integrator is Crank–Nicolson in the residual (the spatial operator now includes both $x$ and $y$\n",
+    "  derivatives); `u_prev` keeps its graph so CN can differentiate the frozen step.\n",
+    "- **No spatial BC** (`bc_weight = 0`): the moving front makes a fixed Dirichlet BC inconsistent, so the\n",
+    "  solution is anchored by the IC + PDE + step-continuity. The error grows mildly in time as the front\n",
+    "  approaches the (unconstrained) boundary — visible in §5/§6.\n",
+    "- Figures: `figs/burgers2d_errors.pdf`, `figs/burgers2d_fields.pdf`.\n",
+    "- To sharpen the front, lower `NU`; you may then need more `N_COLLOC` / `EPOCHS`."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": ".venv (3.12.3.final.0)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

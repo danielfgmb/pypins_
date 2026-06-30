@@ -1,0 +1,39 @@
+{
+    "model_config": {
+        "x_dim": 1,
+        "hidden_size": 32,
+        "u_dim": 1,
+        "architecture": "3_layers_tanh"
+    },
+    "physics_params": {
+        "nu": 0.3,
+        "dt": 0.01,
+        "tf": 0.1
+    },
+    "training_config": {
+        "nx": 1000,
+        "nt": 10,
+        "epochs": 300000,
+        "tolerance": 0.001,
+        "optimizer": "AdamW",
+        "initial_learning_rate": 0.01,
+        "min_learning_rate": 1e-07,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience_initial": 50,
+        "scheduler_patience_timestep": 20,
+        "scheduler_factor": 0.5,
+        "instability_lr_reduction_factor": 0.1
+    },
+    "computation_config": {
+        "device": "cpu",
+        "mixed_precision": false,
+        "n_prints": 300,
+        "n_plots": 10
+    },
+    "experiment_info": {
+        "timestamp": "2025-09-26T09:29:28.113654",
+        "torch_version": "2.8.0",
+        "description": "Time-dependent PINN for implicit PDE with diffusion"
+    }
+}

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "pinns-framework"
+version = "0.1.0"
+description = "Physics-Informed Networks framework with TD-PINNs, adaptive collocation, and KAN support"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "numpy",
+    "matplotlib",
+    "pandas",
+]
+
+[project.optional-dependencies]
+kan = ["pykan"]
+dev = ["jupyter", "ipykernel"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pinns_framework*"]

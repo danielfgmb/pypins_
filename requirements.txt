@@ -1,0 +1,19 @@
+# ── Core (pinns_framework) ────────────────────────────────────────────────────
+torch==2.10.0
+numpy==2.4.2
+matplotlib==3.10.8
+pandas==3.0.1
+
+# ── KAN backend (optional — only needed for arch="KAN") ───────────────────────
+pykan==0.2.8
+sympy==1.14.0          # pykan dependency
+tqdm==4.67.3           # pykan dependency
+
+# ── Scientific computing (available, used in notebooks) ───────────────────────
+scipy==1.17.1
+scikit-learn==1.8.0
+
+# ── Notebooks ─────────────────────────────────────────────────────────────────
+ipykernel==7.2.0
+jupyter_client==8.8.0
+jupyter_core==5.9.1
