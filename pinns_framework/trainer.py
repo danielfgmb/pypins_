@@ -180,7 +180,8 @@ class PINTrainer:
         )
         return opt, sched
 
-    def _run_epochs(self, opt, sched, loss_fn_callable, label="", epoch_callback=None):
+    def _run_epochs(self, opt, sched, loss_fn_callable, label="",
+                    epoch_callback=None, net=None):
         """
         Generic epoch loop with early stopping.
 
@@ -188,10 +189,26 @@ class PINTrainer:
                          log_every interval and at the final epoch (whether
                          by convergence or by reaching max epochs).  Used to
                          collect residual snapshots for adaptive collocation.
+        net            : optional network being trained.  If it carries an
+                         adaptive grid-refinement policy (a KANNet with
+                         refine_every set), the grid is made finer whenever the
+                         loss stalls — see the refinement block below.  When the
+                         net has no such policy (e.g. an MLP) this is a no-op.
         """
         epochs_run = 0
         final_loss = float("nan")
         converged  = False
+
+        # ── adaptive grid refinement (opt-in, KAN only) ─────────────────
+        # Active only when the net advertises a refinement policy.  We track
+        # the loss at the start of each refinement window; at the end of the
+        # window we refine *only if* the relative improvement was too small
+        # (the loss is not reducing fast enough), which is the efficient part —
+        # no refinement is spent while the net is still making good progress.
+        refine_on = bool(getattr(net, "refine_every", None)) and hasattr(net, "refine_grid")
+        win_start = None       # loss at the start of the current window
+        n_refines = 0
+
         for epoch in range(1, self.epochs + 1):
             opt.zero_grad()
             loss = loss_fn_callable()
@@ -207,6 +224,25 @@ class PINTrainer:
 
             if epoch_callback is not None and epoch % self.log_every == 0:
                 epoch_callback(epoch)
+
+            if refine_on:
+                if win_start is None:
+                    win_start = loss.item()
+                elif epoch % net.refine_every == 0:
+                    improved = (win_start - loss.item()) / (abs(win_start) + 1e-12)
+                    if improved < net.refine_tol:
+                        new_g = net.refine_grid(self.device)
+                        if new_g is None:
+                            refine_on = False          # cap reached — stop checking
+                        else:
+                            opt, sched = self._make_optim(net)  # new params
+                            n_refines += 1
+                            if self.verbose:
+                                print(f"  [{label}] grid refined -> {new_g} "
+                                      f"at epoch {epoch} "
+                                      f"(window improvement {improved:+.1%} "
+                                      f"< {net.refine_tol:.0%})")
+                    win_start = loss.item()
 
             if loss.item() < self.tolerance:
                 converged = True
@@ -227,6 +263,7 @@ class PINTrainer:
             "epochs": epochs_run,
             "converged": converged,
             "final_loss": final_loss,
+            "refinements": n_refines,
         })
 
     # ──────────────────────────────────────────────────────────────────
@@ -259,7 +296,7 @@ class PINTrainer:
                 + self.bc_weight * F.mse_loss(net0(x_bc), u_bc)
             )
 
-        self._run_epochs(opt, sched, ic_loss, label="step 0 / IC")
+        self._run_epochs(opt, sched, ic_loss, label="step 0 / IC", net=net0)
         trained_nets.append(net0)
         prev_net = net0
 
@@ -318,6 +355,7 @@ class PINTrainer:
             self._run_epochs(
                 opt, sched, pde_loss, label=f"step {step}",
                 epoch_callback=epoch_cb if self.collocation_fn is not None else None,
+                net=net_n,
             )
 
             # Store residual histories for the next step's collocation
@@ -370,7 +408,7 @@ class PINTrainer:
                 + self.pde_weight * pde
             )
 
-        self._run_epochs(opt, sched, total_loss, label="VANILLA")
+        self._run_epochs(opt, sched, total_loss, label="VANILLA", net=net)
         return [net]
 
 
