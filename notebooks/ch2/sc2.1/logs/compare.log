@@ -1,0 +1,27 @@
+=== weak_projection vs agnostic, TD-PINNs vs Vanilla -- error summary ===
+                            epochs    mean_L1    mean_L2  mean_Linf   final_L1   final_L2  final_Linf     wall_s
+method                                                                                                          
+TD-PINNs (strong)           500000 2.0908e-03 4.4167e-03 4.5552e-02 2.3677e-03 6.0032e-03  6.9778e-02 2.9462e+03
+TD-PINNs (weak_projection)  500000 8.8049e-02 2.2937e-01 1.3380e+00 1.2108e-01 2.9842e-01  1.8109e+00 2.9440e+03
+TD-PINNs (agnostic)         500000 1.1507e-01 2.7558e-01 1.6208e+00 1.3769e-01 3.1080e-01  1.6494e+00 2.9456e+03
+Vanilla (strong)            510000 8.8311e-03 1.2985e-02 5.4837e-02 8.2600e-03 1.2319e-02  5.9622e-02 2.9446e+03
+Vanilla (weak_projection)   510000 1.7685e-02 2.1916e-02 4.9514e-02 3.4634e-02 4.2636e-02  9.3732e-02 2.9447e+03
+Vanilla (agnostic)          510000 7.8794e-02 2.4397e-01 2.2249e+00 1.4325e-01 4.4399e-01  3.8010e+00 2.9443e+03
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.1/figs/sc21_errors.pdf
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.1/figs/sc21_conservation.pdf
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_strong.pt'
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_weak_projection.pt'
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_agnostic.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/vanilla_strong.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/vanilla_weak_projection.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/vanilla_agnostic.pt'
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.1/figs/sc21_spectral.pdf
+
+=== summed |spectral error| per band (final time) ===
+            TD-PINNs (strong)  TD-PINNs (weak_projection)  TD-PINNs (agnostic)  Vanilla (strong)  Vanilla (weak_projection)  Vanilla (agnostic)
+DC (k=0)           1.1206e-04                  7.2436e-03           2.1594e-03        2.4018e-03                 1.4242e-02          1.2404e-02
+low (1-4)          6.1804e-04                  2.7469e-02           2.4107e-02        1.3481e-02                 4.8039e-02          9.9052e-02
+mid (5-15)         4.2021e-03                  5.7438e-01           6.0689e-01        1.1655e-02                 2.9134e-02          7.6339e-01
+high (16+)         3.5563e-02                  6.3297e-01           6.9463e-01        2.1282e-02                 3.3634e-02          1.0802e+00
+
+All comparison outputs written under results/ and figs/.

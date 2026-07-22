@@ -1,0 +1,7 @@
+[vanilla_mlp] device=cuda epochs=4200 tol=-1e+18
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  2000 | loss 1.8680e-03
+  [VANILLA] epoch  4000 | loss 1.0690e-03
+[vanilla_mlp] done | epochs=4200 | wall 12.0s
+Saved 1 network(s) [MLP / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/vanilla_mlp.pt'
+[vanilla_mlp] DONE marker written

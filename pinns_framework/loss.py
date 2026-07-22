@@ -92,20 +92,38 @@ class PINLossFunction:
         Computes the PDE residual tensor (N, 1).  The trainer calls it with
         keyword arguments that depend on the training scheme.
 
-    form : "strong" | "weak"
+    form : "strong" | "weak_projection" | "agnostic"
         "strong" (default) — minimises MSE of the point-wise residual:
             L = (1/N) Σ_i R(x_i)²
 
-        "weak" — Petrov–Galerkin projection (VPINN formulation):
+        "weak_projection" — Petrov–Galerkin projection (VPINN formulation):
             L = (1/K) Σ_k (∫_Ω R(u) v_k dx)²
-              ≈ (1/K) Σ_k ((1/N) Σ_i R(x_i) v_k(x_i))²
+              ≈ (1/K) Σ_k (domain_volume · (1/N) Σ_i R(x_i) v_k(x_i))²
             where {v_k} is a bank of Legendre polynomial test functions.
             The residual_fn signature is UNCHANGED — only the aggregation differs.
+            NOTE: (1/N) Σ_i R(x_i) v_k(x_i) is a Monte Carlo estimate of
+            E[R v_k] = (1/domain_volume) ∫_Ω R v_k dx, NOT of the integral
+            itself — it is missing a factor of domain_volume = |Ω| (the
+            measure of whatever is actually being averaged over: just the
+            spatial domain for TD-PINNs, but |Ω|·T for VANILLA, since each
+            collocation point there also carries an independent random t that
+            gets marginalized out by the same average). domain_volume lets
+            you supply that factor explicitly; it defaults to 1.0 (old
+            behaviour — the average is used as-is, silently biased low by
+            1/domain_volume when domain_volume > 1, or biased high when
+            domain_volume < 1, relative to the true weak residual).
 
-    n_test : int  (default 10, only used when form="weak")
+        "agnostic" — residual_fn already returns the finished scalar loss.
+            PINLossFunction performs no reduction or projection at all; it
+            just calls residual_fn(**kwargs) and returns the result as-is.
+            Use this when you derive the weak form yourself (e.g. integration
+            by parts to drop an order of derivative) and want full control
+            over how the PDE loss is assembled.
+
+    n_test : int  (default 10, only used when form="weak_projection")
         Number of Legendre basis functions per spatial dimension.
 
-    multi_dim_mode : "total_degree" | "full"  (only used when form="weak" and D ≥ 2)
+    multi_dim_mode : "total_degree" | "full"  (only used when form="weak_projection" and D ≥ 2)
         How to build multi-dimensional test functions from 1-D Legendre banks.
 
         "total_degree" (default) — include only multi-indices (k1,…,kD) with
@@ -116,10 +134,19 @@ class PINLossFunction:
         "full" — all tensor-product combinations.  K = n_test^D.
             Manageable for D=2 but grows exponentially for D ≥ 3.
 
-    test_fn : callable or None  (only used when form="weak")
+    test_fn : callable or None  (only used when form="weak_projection")
         Custom test function matrix builder.  Signature:
             test_fn(x: Tensor (N, D), spatial_dims) -> Tensor (N, K)
         When provided, n_test and multi_dim_mode are ignored.
+
+    domain_volume : float  (default 1.0, only used when form="weak_projection")
+        Scale factor applied to the Monte Carlo average before squaring — see
+        the "weak_projection" note above. Pass |Ω| (the product of each
+        spatial dimension's length) for TD-PINNs, or |Ω|·T for VANILLA (T =
+        the trainer's fit() time horizon), so the computed loss matches the
+        true weak-residual magnitude instead of being off by 1/domain_volume.
+        Left at the default 1.0, behaviour is unchanged from before this
+        parameter existed.
 
     Residual function signature conventions
     ----------------------------------------
@@ -140,7 +167,11 @@ class PINLossFunction:
         x        : spatial collocation points with requires_grad=True
         **pde_kwargs : constants
 
-    Example (1-D Burgers — same residual_fn works for both strong and weak)
+    When form="agnostic", residual_fn returns a scalar Tensor (the finished
+    loss) instead of an (N, 1) residual — everything else about its inputs
+    is unchanged.
+
+    Example (1-D Burgers — same residual_fn works for strong and weak_projection)
     -------------------------------------------------------------------------
     def burgers_residual(u, u_prev, x, dt, nu=0.01):
         du_dx  = torch.autograd.grad(u.sum(),     x, create_graph=True)[0]
@@ -150,38 +181,56 @@ class PINLossFunction:
     # Strong form (default)
     loss_fn = PINLossFunction([x_dim], burgers_residual)
 
-    # Weak form — 10 Legendre test functions, no other changes
-    loss_fn = PINLossFunction([x_dim], burgers_residual, form="weak", n_test=10)
+    # Weak projection — 10 Legendre test functions, no other changes
+    loss_fn = PINLossFunction([x_dim], burgers_residual, form="weak_projection", n_test=10)
+
+    # Agnostic — residual_fn computes and returns the finished scalar loss
+    def burgers_weak_loss(u, u_prev, x, dt, nu=0.01):
+        du_dx = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+        # ... integrate by parts, build your own projection ...
+        return loss  # scalar Tensor
+    loss_fn = PINLossFunction([x_dim], burgers_weak_loss, form="agnostic")
     """
 
     def __init__(self, spatial_dims, residual_fn, form="strong",
-                 n_test=10, multi_dim_mode="total_degree", test_fn=None):
+                 n_test=10, multi_dim_mode="total_degree", test_fn=None,
+                 domain_volume=1.0):
         self.spatial_dims    = spatial_dims
         self.residual_fn     = residual_fn
-        if form not in ("strong", "weak"):
-            raise ValueError("form must be 'strong' or 'weak'")
+        if form == "weak":  # backward-compat alias for the renamed "weak_projection"
+            form = "weak_projection"
+        if form not in ("strong", "weak_projection", "agnostic"):
+            raise ValueError("form must be 'strong', 'weak_projection', or 'agnostic'")
         if multi_dim_mode not in ("total_degree", "full"):
             raise ValueError("multi_dim_mode must be 'total_degree' or 'full'")
         self.form           = form
         self.n_test         = n_test
         self.multi_dim_mode = multi_dim_mode
         self.test_fn        = test_fn
+        self.domain_volume  = domain_volume
 
     def __call__(self, **kwargs):
         """
         Compute the PDE loss scalar.  All kwargs are forwarded to residual_fn.
         The trainer is responsible for providing the correct arguments.
         """
-        residual = self.residual_fn(**kwargs)  # (N, 1)
+        result = self.residual_fn(**kwargs)
+
+        if self.form == "agnostic":
+            # residual_fn already returns the finished scalar loss — no
+            # reduction or projection to do here.
+            return result
+
+        residual = result  # (N, 1)
 
         if self.form == "strong":
             return (residual ** 2).mean()
 
-        # ── weak / Petrov–Galerkin form ───────────────────────────────
+        # ── weak_projection / Petrov–Galerkin form ────────────────────
         x = kwargs.get("x")
         if x is None:
             raise RuntimeError(
-                "Weak form requires 'x' to be a keyword argument.  "
+                "weak_projection form requires 'x' to be a keyword argument.  "
                 "The trainer always supplies it; if calling the loss "
                 "directly, pass x=<collocation_tensor>."
             )
@@ -193,9 +242,9 @@ class PINLossFunction:
                 x, self.spatial_dims, self.n_test, self.multi_dim_mode
             )  # (N, K)
 
-        # Monte Carlo approximation:  ∫ R v_k dx ≈ (1/N) Σ_i R_i v_k(x_i)
+        # Monte Carlo approximation:  ∫ R v_k dx ≈ domain_volume · (1/N) Σ_i R_i v_k(x_i)
         # residual (N, 1) * V (N, K)  →  (N, K)  →  mean over N  →  (K,)
-        integrals = (residual * V).mean(dim=0)
+        integrals = (residual * V).mean(dim=0) * self.domain_volume
         return (integrals ** 2).mean()
 
     def __repr__(self):
@@ -203,6 +252,7 @@ class PINLossFunction:
             f"PINLossFunction(form={self.form!r}, "
             f"dims={[d.name for d in self.spatial_dims]}"
         )
-        if self.form == "weak":
-            base += f", n_test={self.n_test}, multi_dim_mode={self.multi_dim_mode!r}"
+        if self.form == "weak_projection":
+            base += (f", n_test={self.n_test}, multi_dim_mode={self.multi_dim_mode!r}"
+                      f", domain_volume={self.domain_volume!r}")
         return base + ")"

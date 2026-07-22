@@ -1,0 +1,40 @@
+[td_agnostic_nu0p001] device=cuda scheme=TD-PINNS nu=0.001 epochs=100000 ic_epochs=10000 tol=-1e+18
+=== TD-PINNs | step 0 — initial condition ===
+  [step 0 / IC] epoch  5000 | loss 5.8109e-07
+  [step 0 / IC] epoch 10000 | loss 1.6627e-07
+=== TD-PINNs | step 1/4  (t = 0.15) ===
+  [step 1] epoch  5000 | loss 4.9019e-06
+  [step 1] epoch 10000 | loss 2.2015e-05
+  [step 1] epoch 15000 | loss 2.8306e-06
+  [step 1] epoch 20000 | loss 4.4321e-05
+  [step 1] epoch 25000 | loss 6.8580e-06
+  [step 1] epoch 30000 | loss 2.8453e-06
+  [step 1] epoch 35000 | loss 7.2300e-06
+  [step 1] epoch 40000 | loss 9.8376e-06
+  [step 1] epoch 45000 | loss 4.9200e-06
+  [step 1] epoch 50000 | loss 3.6699e-06
+  [step 1] epoch 55000 | loss 5.8578e-06
+  [step 1] epoch 60000 | loss 1.6023e-06
+  [step 1] epoch 65000 | loss 1.8095e-06
+  [step 1] epoch 70000 | loss 3.3681e-06
+  [step 1] epoch 75000 | loss 1.8700e-06
+  [step 1] epoch 80000 | loss 3.1759e-05
+  [step 1] epoch 85000 | loss 1.1453e-05
+  [step 1] epoch 90000 | loss 2.3041e-06
+  [step 1] epoch 95000 | loss 2.1754e-06
+  [step 1] epoch 100000 | loss 1.6233e-05
+=== TD-PINNs | step 2/4  (t = 0.3) ===
+  [step 2] epoch  5000 | loss 3.0542e-06
+  [step 2] epoch 10000 | loss 4.0822e-06
+  [step 2] epoch 15000 | loss 3.1106e-06
+  [step 2] epoch 20000 | loss 2.4078e-05
+  [step 2] epoch 25000 | loss 2.1405e-06
+  [step 2] epoch 30000 | loss 7.0005e-05
+  [step 2] epoch 35000 | loss 5.0411e-06
+  [step 2] epoch 40000 | loss 2.1769e-06
+  [step 2] epoch 45000 | loss 3.6458e-06
+  [step 2] epoch 50000 | loss 2.3238e-06
+  [step 2] epoch 55000 | loss 2.4371e-06
+  [step 2] epoch 60000 | loss 5.1511e-06
+  [step 2] epoch 65000 | loss 2.0791e-06
+  [step 2] epoch 70000 | loss 7.4435e-06

@@ -1,0 +1,15 @@
+[vanilla_kan] device=cuda epochs=4200 tol=-1e+18
+checkpoint directory created: ./model
+saving model version 0.0
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch   500 | loss 1.6380e-02
+  [VANILLA] epoch  1000 | loss 1.2893e-02
+  [VANILLA] epoch  1500 | loss 2.0643e-03
+  [VANILLA] epoch  2000 | loss 3.1546e-03
+  [VANILLA] epoch  2500 | loss 1.7300e-03
+  [VANILLA] epoch  3000 | loss 1.1737e-03
+  [VANILLA] epoch  3500 | loss 4.6359e-04
+  [VANILLA] epoch  4000 | loss 4.6280e-04
+[vanilla_kan] done | epochs=4200 | wall 2183.1s
+Saved 1 network(s) [KAN / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/vanilla_kan.pt'
+[vanilla_kan] DONE marker written

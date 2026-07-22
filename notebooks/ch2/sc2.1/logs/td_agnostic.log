@@ -1,0 +1,113 @@
+[td_agnostic] device=cuda ic_epochs=10000 pde_epochs/step=100000 tol=-1e+18
+[td_agnostic] NOTE: using collocation_uniform, not collocation_last_residual -- the latter crashes for form=agnostic residual functions (see common.py COLLOCATION_FN_AGNOSTIC_SAFE comment for the root cause).
+=== TD-PINNs | step 0 — initial condition ===
+  [step 0 / IC] epoch  5000 | loss 1.4891e-05
+  [step 0 / IC] epoch 10000 | loss 6.6874e-06
+=== TD-PINNs | step 1/5  (t = 0.005) ===
+  [step 1] epoch  5000 | loss 1.7107e-02
+  [step 1] epoch 10000 | loss 4.4151e-01
+  [step 1] epoch 15000 | loss 7.0559e-02
+  [step 1] epoch 20000 | loss 1.5540e+00
+  [step 1] epoch 25000 | loss 7.2767e-02
+  [step 1] epoch 30000 | loss 8.7545e-03
+  [step 1] epoch 35000 | loss 3.8828e-02
+  [step 1] epoch 40000 | loss 2.1554e-02
+  [step 1] epoch 45000 | loss 2.7447e-02
+  [step 1] epoch 50000 | loss 1.1778e-01
+  [step 1] epoch 55000 | loss 2.6308e-02
+  [step 1] epoch 60000 | loss 9.7555e-02
+  [step 1] epoch 65000 | loss 1.6615e-02
+  [step 1] epoch 70000 | loss 3.4271e-02
+  [step 1] epoch 75000 | loss 3.7083e-01
+  [step 1] epoch 80000 | loss 1.7040e-01
+  [step 1] epoch 85000 | loss 4.1360e-01
+  [step 1] epoch 90000 | loss 5.5129e-02
+  [step 1] epoch 95000 | loss 3.8736e-02
+  [step 1] epoch 100000 | loss 2.5800e-01
+=== TD-PINNs | step 2/5  (t = 0.01) ===
+  [step 2] epoch  5000 | loss 3.5999e-02
+  [step 2] epoch 10000 | loss 1.8563e-02
+  [step 2] epoch 15000 | loss 2.6694e-02
+  [step 2] epoch 20000 | loss 2.2572e-02
+  [step 2] epoch 25000 | loss 2.6488e-02
+  [step 2] epoch 30000 | loss 2.5405e-02
+  [step 2] epoch 35000 | loss 2.1685e-02
+  [step 2] epoch 40000 | loss 3.4373e-02
+  [step 2] epoch 45000 | loss 2.2466e-02
+  [step 2] epoch 50000 | loss 4.7690e-02
+  [step 2] epoch 55000 | loss 4.5734e-01
+  [step 2] epoch 60000 | loss 2.4515e-02
+  [step 2] epoch 65000 | loss 4.9515e-02
+  [step 2] epoch 70000 | loss 4.4870e-03
+  [step 2] epoch 75000 | loss 1.3077e-02
+  [step 2] epoch 80000 | loss 1.1076e-01
+  [step 2] epoch 85000 | loss 4.3454e-02
+  [step 2] epoch 90000 | loss 2.6134e-02
+  [step 2] epoch 95000 | loss 2.1829e-02
+  [step 2] epoch 100000 | loss 2.7476e-02
+=== TD-PINNs | step 3/5  (t = 0.015) ===
+  [step 3] epoch  5000 | loss 6.1559e-02
+  [step 3] epoch 10000 | loss 5.1034e-02
+  [step 3] epoch 15000 | loss 3.7808e-02
+  [step 3] epoch 20000 | loss 9.5159e-03
+  [step 3] epoch 25000 | loss 1.9306e-02
+  [step 3] epoch 30000 | loss 2.1582e-01
+  [step 3] epoch 35000 | loss 3.3660e-02
+  [step 3] epoch 40000 | loss 2.8595e-02
+  [step 3] epoch 45000 | loss 3.7015e-02
+  [step 3] epoch 50000 | loss 1.8822e-01
+  [step 3] epoch 55000 | loss 9.6837e-02
+  [step 3] epoch 60000 | loss 2.2133e-02
+  [step 3] epoch 65000 | loss 4.1575e-02
+  [step 3] epoch 70000 | loss 3.6379e-02
+  [step 3] epoch 75000 | loss 6.0085e-03
+  [step 3] epoch 80000 | loss 4.3351e-02
+  [step 3] epoch 85000 | loss 1.1910e-01
+  [step 3] epoch 90000 | loss 1.5897e-02
+  [step 3] epoch 95000 | loss 5.8380e-02
+  [step 3] epoch 100000 | loss 7.8306e-02
+=== TD-PINNs | step 4/5  (t = 0.02) ===
+  [step 4] epoch  5000 | loss 6.7070e-02
+  [step 4] epoch 10000 | loss 2.5286e-02
+  [step 4] epoch 15000 | loss 1.8172e-02
+  [step 4] epoch 20000 | loss 9.9283e-03
+  [step 4] epoch 25000 | loss 3.3574e-02
+  [step 4] epoch 30000 | loss 1.9716e-01
+  [step 4] epoch 35000 | loss 1.1526e-02
+  [step 4] epoch 40000 | loss 4.2929e-02
+  [step 4] epoch 45000 | loss 4.2732e-02
+  [step 4] epoch 50000 | loss 9.1613e-03
+  [step 4] epoch 55000 | loss 4.1673e-02
+  [step 4] epoch 60000 | loss 5.3312e-02
+  [step 4] epoch 65000 | loss 7.6038e-02
+  [step 4] epoch 70000 | loss 9.1499e-03
+  [step 4] epoch 75000 | loss 2.7841e-02
+  [step 4] epoch 80000 | loss 1.6200e-02
+  [step 4] epoch 85000 | loss 1.2366e-02
+  [step 4] epoch 90000 | loss 3.0468e-01
+  [step 4] epoch 95000 | loss 4.2877e-02
+  [step 4] epoch 100000 | loss 1.0960e-02
+=== TD-PINNs | step 5/5  (t = 0.025) ===
+  [step 5] epoch  5000 | loss 2.7888e-02
+  [step 5] epoch 10000 | loss 2.5260e-02
+  [step 5] epoch 15000 | loss 2.5549e-02
+  [step 5] epoch 20000 | loss 3.8487e-02
+  [step 5] epoch 25000 | loss 3.9029e-02
+  [step 5] epoch 30000 | loss 2.9217e-02
+  [step 5] epoch 35000 | loss 5.0040e-02
+  [step 5] epoch 40000 | loss 2.8341e-02
+  [step 5] epoch 45000 | loss 5.8442e-02
+  [step 5] epoch 50000 | loss 1.9477e-02
+  [step 5] epoch 55000 | loss 2.8728e-02
+  [step 5] epoch 60000 | loss 4.6756e-02
+  [step 5] epoch 65000 | loss 5.8234e-02
+  [step 5] epoch 70000 | loss 2.7485e-02
+  [step 5] epoch 75000 | loss 5.3980e-02
+  [step 5] epoch 80000 | loss 2.3747e-02
+  [step 5] epoch 85000 | loss 5.3789e-02
+  [step 5] epoch 90000 | loss 5.5263e-02
+  [step 5] epoch 95000 | loss 1.0113e-01
+  [step 5] epoch 100000 | loss 4.6187e-02
+[td_agnostic] done | epochs(PDE steps)=500000 | wall 2945.6s
+Saved 6 network(s) [MLP / TD-PINNs] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_agnostic.pt'
+[td_agnostic] DONE marker written

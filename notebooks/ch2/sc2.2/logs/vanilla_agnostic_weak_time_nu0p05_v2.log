@@ -1,0 +1,2 @@
+[vanilla_agnostic_weak_time_nu0p05] device=cuda scheme=VANILLA nu=0.05 epochs=410000 ic_epochs=None tol=-1e+18
+=== Vanilla PINNs | training over full (t, x) domain ===

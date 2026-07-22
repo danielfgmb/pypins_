@@ -1,0 +1,12 @@
+[vanilla_agnostic] device=cuda epochs=510000 tol=-1e+18 time_colloc_nodes=6
+[vanilla_agnostic] using collocation_uniform (see module docstring).
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  2000 | loss 2.2978e-01
+  [VANILLA] epoch  4000 | loss 1.2427e-01
+  [VANILLA] epoch  6000 | loss 1.5073e-01
+  [VANILLA] epoch  8000 | loss 2.2906e-01
+  [VANILLA] epoch 10000 | loss 2.2636e-01
+  [VANILLA] epoch 12000 | loss 1.1013e-01
+  [VANILLA] epoch 14000 | loss 1.8436e-01
+  [VANILLA] epoch 16000 | loss 3.2258e-01
+  [VANILLA] epoch 18000 | loss 3.9835e-01

@@ -1,0 +1,2 @@
+label,epochs,converged,final_loss,best_loss,refinements
+VANILLA,410000,False,1.359101224807091e-05,3.1662841593060875e-06,0

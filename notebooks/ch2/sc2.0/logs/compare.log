@@ -1,0 +1,37 @@
+=== MLP vs KAN, TD-PINNs vs Vanilla -- error summary ===
+                epochs    mean_L1    mean_L2  mean_Linf   final_L1   final_L2  final_Linf     wall_s
+method                                                                                              
+TD-PINNs (MLP)    4000 1.3430e-01 2.7049e-01 1.5382e+00 1.1981e-01 2.3578e-01  1.3107e+00 1.1319e+01
+TD-PINNs (KAN)    4000 7.1109e-03 1.1714e-02 7.4366e-02 5.8729e-03 9.4303e-03  5.0936e-02 2.0602e+03
+Vanilla (MLP)     4200 1.5954e-02 2.0820e-02 9.7345e-02 1.5191e-02 1.9280e-02  7.4193e-02 1.1971e+01
+Vanilla (KAN)     4200 6.6289e-03 1.1508e-02 7.6194e-02 6.0626e-03 1.0946e-02  9.6797e-02 2.1831e+03
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.0/figs/sc20_errors.pdf
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.0/figs/sc20_conservation.pdf
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/td_mlp.pt'
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+Loaded 6 TD-PINNs [KAN] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/td_kan.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/vanilla_mlp.pt'
+checkpoint directory created: ./model
+saving model version 0.0
+Loaded 1 Vanilla [KAN] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/vanilla_kan.pt'
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.0/figs/sc20_spectral.pdf
+
+=== summed |spectral error| per band (final time) ===
+            TD-PINNs (MLP)  TD-PINNs (KAN)  Vanilla (MLP)  Vanilla (KAN)
+DC (k=0)        1.7171e-02      3.6001e-05     6.6566e-04     1.0359e-03
+low (1-4)       8.7191e-02      3.1450e-03     2.2151e-02     7.4047e-03
+mid (5-15)      3.9957e-01      1.4059e-02     1.5080e-02     1.7928e-02
+high (16+)      5.8280e-01      3.8451e-02     3.0214e-02     3.3112e-02
+
+All comparison outputs written under results/ and figs/.

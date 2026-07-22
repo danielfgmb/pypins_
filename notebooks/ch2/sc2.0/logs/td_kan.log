@@ -1,0 +1,17 @@
+[td_kan] device=cuda ic_epochs=200 pde_epochs/step=800 tol=-1e+18
+checkpoint directory created: ./model
+saving model version 0.0
+=== TD-PINNs | step 0 — initial condition ===
+=== TD-PINNs | step 1/5  (t = 0.005) ===
+  [step 1] epoch   500 | loss 3.0045e-02
+=== TD-PINNs | step 2/5  (t = 0.01) ===
+  [step 2] epoch   500 | loss 6.0423e-02
+=== TD-PINNs | step 3/5  (t = 0.015) ===
+  [step 3] epoch   500 | loss 7.5529e-02
+=== TD-PINNs | step 4/5  (t = 0.02) ===
+  [step 4] epoch   500 | loss 3.7015e-02
+=== TD-PINNs | step 5/5  (t = 0.025) ===
+  [step 5] epoch   500 | loss 4.7208e-02
+[td_kan] done | epochs(PDE steps)=4000 | wall 2060.2s
+Saved 6 network(s) [KAN / TD-PINNs] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/td_kan.pt'
+[td_kan] DONE marker written

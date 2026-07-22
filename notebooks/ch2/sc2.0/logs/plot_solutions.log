@@ -1,0 +1,20 @@
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/td_mlp.pt'
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+checkpoint directory created: ./model
+saving model version 0.0
+Loaded 6 TD-PINNs [KAN] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/td_kan.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/vanilla_mlp.pt'
+checkpoint directory created: ./model
+saving model version 0.0
+Loaded 1 Vanilla [KAN] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/vanilla_kan.pt'
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.0/figs/sc20_solutions.png
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.0/figs/sc20_solutions.pdf

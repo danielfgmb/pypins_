@@ -1,0 +1,7 @@
+[weak_projection_k2] device=cuda form=weak_projection k=2 epochs=100000
+  epoch     0 | pde 1.0336e+00 | bc 3.3097e-02
+  epoch  2000 | pde 1.5982e-02 | bc 4.6876e-05
+  epoch  4000 | pde 3.8821e-03 | bc 8.0806e-07
+  epoch  6000 | pde 1.6846e-03 | bc 1.2131e-04
+  epoch  8000 | pde 1.0544e-03 | bc 1.3666e-06
+  epoch 10000 | pde 4.8407e-04 | bc 1.4437e-05

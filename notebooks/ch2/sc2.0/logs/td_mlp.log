@@ -1,0 +1,10 @@
+[td_mlp] device=cuda ic_epochs=200 pde_epochs/step=800 tol=-1e+18
+=== TD-PINNs | step 0 — initial condition ===
+=== TD-PINNs | step 1/5  (t = 0.005) ===
+=== TD-PINNs | step 2/5  (t = 0.01) ===
+=== TD-PINNs | step 3/5  (t = 0.015) ===
+=== TD-PINNs | step 4/5  (t = 0.02) ===
+=== TD-PINNs | step 5/5  (t = 0.025) ===
+[td_mlp] done | epochs(PDE steps)=4000 | wall 11.3s
+Saved 6 network(s) [MLP / TD-PINNs] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.0/checkpoints/td_mlp.pt'
+[td_mlp] DONE marker written

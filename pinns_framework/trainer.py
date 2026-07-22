@@ -55,7 +55,42 @@ class PINTrainer:
     pde_weight       : weight on the PDE residual MSE term
     device           : torch.device (auto-detected if None)
     verbose          : print training progress
-    log_every        : print frequency (epochs)
+    log_every        : print frequency (epochs); also the default sampling
+                       interval for loss_history logging
+    track_best       : if True, each _run_epochs call (one per TD-PINNs step,
+                       or the one VANILLA run) keeps the network weights from
+                       whichever epoch had the lowest training loss, and
+                       restores them at the end instead of leaving the
+                       final-epoch weights in place. Off by default (backward
+                       compatible) since the extra state_dict copy has a cost.
+    error_fn         : optional callable(net, t) -> float, evaluated every
+                       error_every epochs (and logged into self.loss_history
+                       alongside the loss) to track a ground-truth error
+                       metric independent of the training loss. For TD-PINNs,
+                       t is that step's fixed physical time (0.0 for the IC
+                       step); for VANILLA, t is always None since one network
+                       covers every t — aggregate internally if needed.
+    error_every      : epoch interval for error_fn evaluation; defaults to
+                       log_every when not given.
+    ic_epochs        : TD-PINNs only — epoch budget for step 0 (the initial-
+                       condition fit), which is a much easier problem than a
+                       PDE step and typically needs far fewer epochs. Defaults
+                       to `epochs` (backward compatible: same budget for every
+                       stage). Ignored for VANILLA.
+    time_colloc_nodes : VANILLA only — if set (an int), PDE collocation is
+                       sampled as a genuine tensor-product batch: this many
+                       fixed time nodes evenly spaced over [0, T] (via
+                       torch.linspace, inclusive of both ends), each paired
+                       with its own independent n_colloc-point spatial sample.
+                       Needed by loss forms that require several points
+                       sharing the exact same t to do a real (non-Monte-Carlo)
+                       spatial quadrature per time slice — e.g. a weak-form
+                       'agnostic' residual_fn that groups collocation points
+                       by torch.unique(t). Left at the default None (backward
+                       compatible), t_col is one independent torch.rand(0,T)
+                       draw per point, as before — fine for strong/
+                       weak_projection forms, but every point then has its own
+                       essentially-unique t, which breaks per-slice quadrature.
     """
 
     def __init__(
@@ -78,12 +113,18 @@ class PINTrainer:
         verbose=True,
         log_every=500,
         collocation_fn=None,
+        track_best=False,
+        error_fn=None,
+        error_every=None,
+        ic_epochs=None,
+        time_colloc_nodes=None,
     ):
         self.net = net
         self.scheme = scheme.upper().replace("-", "_").replace(" ", "_")
         self.loss_fn = loss_fn
         self.spatial_dims = spatial_dims
         self.epochs = epochs
+        self.ic_epochs = ic_epochs if ic_epochs is not None else epochs
         self.dt = dt
         self.time_integrator = time_integrator.upper()
         self.lr = lr
@@ -101,6 +142,10 @@ class PINTrainer:
         self.verbose = verbose
         self.log_every = log_every
         self.collocation_fn = collocation_fn
+        self.track_best = track_best
+        self.error_fn = error_fn
+        self.error_every = error_every if error_every is not None else log_every
+        self.time_colloc_nodes = time_colloc_nodes
         # Residual histories populated during TD-PINNs training; used by
         # collocation_last_residual and collocation_mean_residual.
         self._last_residual = None  # (x_ref, mag_abs) from final epoch of prev step
@@ -108,8 +153,13 @@ class PINTrainer:
         # Per-call convergence log, populated by _run_epochs (one entry per
         # IC fit / time step / vanilla run).  Purely diagnostic — reading it
         # never changes training.  Each entry:
-        #   {"label", "epochs", "converged", "final_loss"}
+        #   {"label", "epochs", "converged", "final_loss", "best_loss"}
         self.step_history = []
+        # Per-epoch(-ish) time series, sampled every error_every epochs (and
+        # at the final epoch of each stage): {"label", "epoch", "loss",
+        # "error"}. "error" is only present when error_fn is set. Reset at
+        # the start of every fit() call, same as step_history.
+        self.loss_history = []
 
     # ──────────────────────────────────────────────────────────────────
     # Public
@@ -139,6 +189,7 @@ class PINTrainer:
         u_bc = u_bc.to(dev)
 
         self.step_history = []  # fresh log for this fit() call
+        self.loss_history = []
 
         if self.scheme == "TD_PINNS":
             return self._fit_td(x_ic, u_ic, x_bc, u_bc, T, **pde_kwargs)
@@ -181,7 +232,7 @@ class PINTrainer:
         return opt, sched
 
     def _run_epochs(self, opt, sched, loss_fn_callable, label="",
-                    epoch_callback=None, net=None):
+                    epoch_callback=None, net=None, error_cb=None, max_epochs=None):
         """
         Generic epoch loop with early stopping.
 
@@ -194,10 +245,23 @@ class PINTrainer:
                          refine_every set), the grid is made finer whenever the
                          loss stalls — see the refinement block below.  When the
                          net has no such policy (e.g. an MLP) this is a no-op.
+                         Also the network whose weights are snapshotted for
+                         track_best.
+        error_cb       : optional zero-arg callable() -> float, evaluated
+                         every self.error_every epochs (and at the final
+                         epoch) and recorded into self.loss_history alongside
+                         the training loss. Independent of epoch_callback.
+        max_epochs     : epoch budget for this call; defaults to self.epochs.
+                         Lets callers (e.g. the TD-PINNs IC step, via
+                         self.ic_epochs) use a different budget than the rest.
         """
+        max_epochs = max_epochs if max_epochs is not None else self.epochs
         epochs_run = 0
         final_loss = float("nan")
         converged  = False
+
+        best_loss  = float("inf")
+        best_state = None
 
         # ── adaptive grid refinement (opt-in, KAN only) ─────────────────
         # Active only when the net advertises a refinement policy.  We track
@@ -209,7 +273,9 @@ class PINTrainer:
         win_start = None       # loss at the start of the current window
         n_refines = 0
 
-        for epoch in range(1, self.epochs + 1):
+        log_now = False  # tracks whether the final loop iteration already logged
+
+        for epoch in range(1, max_epochs + 1):
             opt.zero_grad()
             loss = loss_fn_callable()
             loss.backward()
@@ -219,10 +285,23 @@ class PINTrainer:
             epochs_run = epoch
             final_loss = loss.item()
 
-            if self.verbose and epoch % self.log_every == 0:
+            if self.track_best and final_loss < best_loss:
+                best_loss = final_loss
+                best_state = {k: v.detach().clone() for k, v in net.state_dict().items()}
+
+            log_now = (epoch % self.log_every == 0)
+            error_now = (epoch % self.error_every == 0)
+
+            if self.verbose and log_now:
                 print(f"  [{label}] epoch {epoch:5d} | loss {loss.item():.4e}")
 
-            if epoch_callback is not None and epoch % self.log_every == 0:
+            if error_now:
+                entry = {"label": label, "epoch": epoch, "loss": final_loss}
+                if error_cb is not None:
+                    entry["error"] = error_cb()
+                self.loss_history.append(entry)
+
+            if epoch_callback is not None and log_now:
                 epoch_callback(epoch)
 
             if refine_on:
@@ -251,9 +330,25 @@ class PINTrainer:
                         f"  [{label}] converged at epoch {epoch}"
                         f" | loss {loss.item():.4e}"
                     )
+                if not error_now:
+                    entry = {"label": label, "epoch": epoch, "loss": final_loss}
+                    if error_cb is not None:
+                        entry["error"] = error_cb()
+                    self.loss_history.append(entry)
                 if epoch_callback is not None:
                     epoch_callback(epoch)
                 break
+
+        # Make sure the very last epoch is always represented in loss_history,
+        # even when self.epochs isn't a multiple of error_every.
+        if not converged and not error_now:
+            entry = {"label": label, "epoch": epochs_run, "loss": final_loss}
+            if error_cb is not None:
+                entry["error"] = error_cb()
+            self.loss_history.append(entry)
+
+        if self.track_best and best_state is not None:
+            net.load_state_dict(best_state)
 
         # Diagnostic record: how many epochs this call needed to reach the
         # tolerance (or the cap, if it never did).  Additive — no effect on
@@ -263,6 +358,7 @@ class PINTrainer:
             "epochs": epochs_run,
             "converged": converged,
             "final_loss": final_loss,
+            "best_loss": best_loss if self.track_best else None,
             "refinements": n_refines,
         })
 
@@ -296,7 +392,9 @@ class PINTrainer:
                 + self.bc_weight * F.mse_loss(net0(x_bc), u_bc)
             )
 
-        self._run_epochs(opt, sched, ic_loss, label="step 0 / IC", net=net0)
+        err_cb0 = (lambda _n=net0: self.error_fn(_n, 0.0)) if self.error_fn is not None else None
+        self._run_epochs(opt, sched, ic_loss, label="step 0 / IC", net=net0,
+                          error_cb=err_cb0, max_epochs=self.ic_epochs)
         trained_nets.append(net0)
         prev_net = net0
 
@@ -352,10 +450,14 @@ class PINTrainer:
                 bc  = F.mse_loss(nn_(x_bc), u_bc)
                 return self.pde_weight * pde + self.bc_weight * bc
 
+            err_cb = (
+                (lambda _n=net_n, _t=step * self.dt: self.error_fn(_n, _t))
+                if self.error_fn is not None else None
+            )
             self._run_epochs(
                 opt, sched, pde_loss, label=f"step {step}",
                 epoch_callback=epoch_cb if self.collocation_fn is not None else None,
-                net=net_n,
+                net=net_n, error_cb=err_cb,
             )
 
             # Store residual histories for the next step's collocation
@@ -397,8 +499,20 @@ class PINTrainer:
             bc = F.mse_loss(net(torch.cat([t_bc, x_bc], dim=1)), u_bc)
 
             # ── PDE collocation ────────────────────────────────────
-            t_col = (torch.rand(n_col, 1, device=self.device) * T).requires_grad_(True)
-            x_col = self._sample_colloc(n_col, net=net)
+            if self.time_colloc_nodes is not None:
+                # Tensor-product batch: fixed time nodes x independent
+                # n_colloc-point spatial samples per node (see
+                # time_colloc_nodes in the class docstring).
+                t_nodes = torch.linspace(0, T, self.time_colloc_nodes, device=self.device)
+                x_parts, t_parts = [], []
+                for tv in t_nodes:
+                    x_parts.append(self._sample_colloc(n_col, net=net))
+                    t_parts.append(torch.full((n_col, 1), float(tv), device=self.device))
+                x_col = torch.cat(x_parts, dim=0)
+                t_col = torch.cat(t_parts, dim=0).requires_grad_(True)
+            else:
+                t_col = (torch.rand(n_col, 1, device=self.device) * T).requires_grad_(True)
+                x_col = self._sample_colloc(n_col, net=net)
             u = net(torch.cat([t_col, x_col], dim=1))
             pde = self.loss_fn(u=u, t=t_col, x=x_col, **pde_kwargs)
 
@@ -408,7 +522,8 @@ class PINTrainer:
                 + self.pde_weight * pde
             )
 
-        self._run_epochs(opt, sched, total_loss, label="VANILLA", net=net)
+        err_cb = (lambda _n=net: self.error_fn(_n, None)) if self.error_fn is not None else None
+        self._run_epochs(opt, sched, total_loss, label="VANILLA", net=net, error_cb=err_cb)
         return [net]
 
 

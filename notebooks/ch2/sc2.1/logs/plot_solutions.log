@@ -1,0 +1,8 @@
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_strong.pt'
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_weak_projection.pt'
+Loaded 6 TD-PINNs [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_agnostic.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/vanilla_strong.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/vanilla_weak_projection.pt'
+Loaded 1 Vanilla [MLP] network(s) from '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/vanilla_agnostic.pt'
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.1/figs/sc21_solutions.png
+saved -> /home/df.gomezb/Tesis/notebooks/ch2/sc2.1/figs/sc21_solutions.pdf

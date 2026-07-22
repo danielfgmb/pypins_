@@ -1,0 +1,11 @@
+[strong_k16] device=cuda form=strong k=16 epochs=100000
+  epoch     0 | pde 3.1240e+06 | bc 3.3097e-02
+  epoch  2000 | pde 3.1988e+06 | bc 4.8504e+01
+  epoch  4000 | pde 3.1683e+06 | bc 1.1191e+01
+  epoch  6000 | pde 3.0858e+06 | bc 2.2917e+01
+  epoch  8000 | pde 2.4568e+06 | bc 3.4155e+01
+  epoch 10000 | pde 1.9364e+06 | bc 9.3523e-01
+  epoch 12000 | pde 1.5000e+06 | bc 1.7937e+01
+  epoch 14000 | pde 1.4892e+06 | bc 2.6239e+01
+  epoch 16000 | pde 1.8363e+06 | bc 6.9930e+01
+  epoch 18000 | pde 1.6868e+06 | bc 2.9677e+02

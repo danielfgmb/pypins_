@@ -1,0 +1,91 @@
+[td_strong_nu0p001] device=cuda scheme=TD-PINNS nu=0.001 epochs=100000 ic_epochs=10000 tol=-1e+18
+=== TD-PINNs | step 0 — initial condition ===
+  [step 0 / IC] epoch  5000 | loss 5.8109e-07
+  [step 0 / IC] epoch 10000 | loss 1.6627e-07
+=== TD-PINNs | step 1/4  (t = 0.15) ===
+  [step 1] epoch  5000 | loss 8.0312e-07
+  [step 1] epoch 10000 | loss 7.5896e-07
+  [step 1] epoch 15000 | loss 7.2468e-07
+  [step 1] epoch 20000 | loss 7.1362e-07
+  [step 1] epoch 25000 | loss 6.0253e-07
+  [step 1] epoch 30000 | loss 5.9662e-07
+  [step 1] epoch 35000 | loss 5.5886e-07
+  [step 1] epoch 40000 | loss 5.9086e-07
+  [step 1] epoch 45000 | loss 5.3649e-07
+  [step 1] epoch 50000 | loss 5.2888e-07
+  [step 1] epoch 55000 | loss 4.9005e-07
+  [step 1] epoch 60000 | loss 5.0577e-07
+  [step 1] epoch 65000 | loss 5.0250e-07
+  [step 1] epoch 70000 | loss 4.7183e-07
+  [step 1] epoch 75000 | loss 4.8579e-07
+  [step 1] epoch 80000 | loss 4.7026e-07
+  [step 1] epoch 85000 | loss 4.2105e-07
+  [step 1] epoch 90000 | loss 3.9838e-07
+  [step 1] epoch 95000 | loss 4.0075e-07
+  [step 1] epoch 100000 | loss 5.1172e-07
+=== TD-PINNs | step 2/4  (t = 0.3) ===
+  [step 2] epoch  5000 | loss 1.4614e-05
+  [step 2] epoch 10000 | loss 1.4173e-05
+  [step 2] epoch 15000 | loss 1.1251e-05
+  [step 2] epoch 20000 | loss 1.6310e-05
+  [step 2] epoch 25000 | loss 1.3501e-05
+  [step 2] epoch 30000 | loss 1.2350e-05
+  [step 2] epoch 35000 | loss 1.1682e-05
+  [step 2] epoch 40000 | loss 1.5718e-05
+  [step 2] epoch 45000 | loss 1.1377e-05
+  [step 2] epoch 50000 | loss 1.0871e-05
+  [step 2] epoch 55000 | loss 1.2305e-05
+  [step 2] epoch 60000 | loss 1.4072e-05
+  [step 2] epoch 65000 | loss 1.1745e-05
+  [step 2] epoch 70000 | loss 1.2277e-05
+  [step 2] epoch 75000 | loss 1.2452e-05
+  [step 2] epoch 80000 | loss 1.0205e-05
+  [step 2] epoch 85000 | loss 1.2885e-05
+  [step 2] epoch 90000 | loss 1.3695e-05
+  [step 2] epoch 95000 | loss 1.2152e-05
+  [step 2] epoch 100000 | loss 1.2168e-05
+=== TD-PINNs | step 3/4  (t = 0.45) ===
+  [step 3] epoch  5000 | loss 5.7648e-05
+  [step 3] epoch 10000 | loss 6.9929e-05
+  [step 3] epoch 15000 | loss 7.1185e-05
+  [step 3] epoch 20000 | loss 6.6749e-05
+  [step 3] epoch 25000 | loss 6.3258e-05
+  [step 3] epoch 30000 | loss 6.4083e-05
+  [step 3] epoch 35000 | loss 6.6392e-05
+  [step 3] epoch 40000 | loss 7.6602e-05
+  [step 3] epoch 45000 | loss 5.7593e-05
+  [step 3] epoch 50000 | loss 4.4017e-05
+  [step 3] epoch 55000 | loss 4.1424e-05
+  [step 3] epoch 60000 | loss 4.1100e-05
+  [step 3] epoch 65000 | loss 3.5876e-05
+  [step 3] epoch 70000 | loss 3.8069e-05
+  [step 3] epoch 75000 | loss 5.4676e-05
+  [step 3] epoch 80000 | loss 5.8872e-05
+  [step 3] epoch 85000 | loss 4.3552e-05
+  [step 3] epoch 90000 | loss 4.9287e-05
+  [step 3] epoch 95000 | loss 5.7651e-05
+  [step 3] epoch 100000 | loss 4.1303e-05
+=== TD-PINNs | step 4/4  (t = 0.6) ===
+  [step 4] epoch  5000 | loss 6.3604e-05
+  [step 4] epoch 10000 | loss 4.8644e-05
+  [step 4] epoch 15000 | loss 2.9465e-05
+  [step 4] epoch 20000 | loss 4.8190e-05
+  [step 4] epoch 25000 | loss 4.3790e-05
+  [step 4] epoch 30000 | loss 4.2849e-05
+  [step 4] epoch 35000 | loss 2.3292e-05
+  [step 4] epoch 40000 | loss 3.9490e-05
+  [step 4] epoch 45000 | loss 5.6276e-05
+  [step 4] epoch 50000 | loss 3.7607e-05
+  [step 4] epoch 55000 | loss 2.3684e-05
+  [step 4] epoch 60000 | loss 3.8002e-05
+  [step 4] epoch 65000 | loss 2.5334e-05
+  [step 4] epoch 70000 | loss 5.4392e-05
+  [step 4] epoch 75000 | loss 3.1866e-05
+  [step 4] epoch 80000 | loss 3.1684e-05
+  [step 4] epoch 85000 | loss 3.1516e-05
+  [step 4] epoch 90000 | loss 5.9845e-05
+  [step 4] epoch 95000 | loss 1.9907e-05
+  [step 4] epoch 100000 | loss 4.4236e-05
+[td_strong_nu0p001] done | epochs=400000 | wall 10375.8s
+Saved 5 network(s) [MLP / TD-PINNs] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.2/checkpoints/td_strong_nu0p001.pt'
+[td_strong_nu0p001] DONE marker written
