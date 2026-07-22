@@ -79,3 +79,35 @@
   [step 4] epoch 50000 | loss 2.4649e-01
   [step 4] epoch 55000 | loss 2.6421e-01
   [step 4] epoch 60000 | loss 2.0081e-01
+  [step 4] epoch 65000 | loss 3.6717e-01
+  [step 4] epoch 70000 | loss 2.0412e-01
+  [step 4] epoch 75000 | loss 1.5977e-01
+  [step 4] epoch 80000 | loss 1.9006e-01
+  [step 4] epoch 85000 | loss 1.8909e-01
+  [step 4] epoch 90000 | loss 4.0444e-01
+  [step 4] epoch 95000 | loss 4.8950e-02
+  [step 4] epoch 100000 | loss 1.1367e-01
+=== TD-PINNs | step 5/5  (t = 0.025) ===
+  [step 5] epoch  5000 | loss 2.2697e-01
+  [step 5] epoch 10000 | loss 1.1269e-01
+  [step 5] epoch 15000 | loss 2.4165e-01
+  [step 5] epoch 20000 | loss 1.7935e-01
+  [step 5] epoch 25000 | loss 1.3376e-01
+  [step 5] epoch 30000 | loss 1.2585e-01
+  [step 5] epoch 35000 | loss 5.2037e-02
+  [step 5] epoch 40000 | loss 1.8768e-01
+  [step 5] epoch 45000 | loss 3.5024e-01
+  [step 5] epoch 50000 | loss 2.2444e-01
+  [step 5] epoch 55000 | loss 3.1352e-01
+  [step 5] epoch 60000 | loss 3.9230e-01
+  [step 5] epoch 65000 | loss 2.7418e-01
+  [step 5] epoch 70000 | loss 1.4141e-01
+  [step 5] epoch 75000 | loss 6.5043e-02
+  [step 5] epoch 80000 | loss 8.2248e-02
+  [step 5] epoch 85000 | loss 5.3152e-02
+  [step 5] epoch 90000 | loss 9.1520e-02
+  [step 5] epoch 95000 | loss 3.4835e-01
+  [step 5] epoch 100000 | loss 6.6825e-02
+[td_agnostic] done | epochs(PDE steps)=500000 | wall 4235.3s
+Saved 6 network(s) [MLP / TD-PINNs] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.1/checkpoints/td_agnostic.pt'
+[td_agnostic] DONE marker written

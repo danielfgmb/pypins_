@@ -1,2 +1,6 @@
 [vanilla_agnostic_nu0p05] device=cuda scheme=VANILLA nu=0.05 epochs=410000 ic_epochs=None tol=-1e+18
 === Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  5000 | loss 6.7409e-06
+  [VANILLA] epoch 10000 | loss 7.6125e-06
+  [VANILLA] epoch 15000 | loss 7.6285e-06
+  [VANILLA] epoch 20000 | loss 6.1474e-06

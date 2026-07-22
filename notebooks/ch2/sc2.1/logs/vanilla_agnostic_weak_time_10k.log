@@ -1,0 +1,5 @@
+[vanilla_agnostic_weak_time] device=cuda epochs=10000 tol=-1e+18 time_colloc_nodes=25 checkpoint_every=1000
+[vanilla_agnostic_weak_time] using collocation_uniform (see module docstring).
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  1000 | loss 7.4693e-04 | real_error 1.8960e-02
+  [VANILLA] epoch  2000 | loss 1.0205e-02 | real_error 2.9880e-02

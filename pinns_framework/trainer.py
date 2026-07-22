@@ -118,6 +118,9 @@ class PINTrainer:
         error_every=None,
         ic_epochs=None,
         time_colloc_nodes=None,
+        checkpoint_every=None,
+        checkpoint_dir=None,
+        checkpoint_prefix="checkpoint",
     ):
         self.net = net
         self.scheme = scheme.upper().replace("-", "_").replace(" ", "_")
@@ -146,6 +149,16 @@ class PINTrainer:
         self.error_fn = error_fn
         self.error_every = error_every if error_every is not None else log_every
         self.time_colloc_nodes = time_colloc_nodes
+        # Periodic checkpointing (opt-in): every checkpoint_every epochs,
+        # dump net.state_dict() to
+        # {checkpoint_dir}/{checkpoint_prefix}_epoch{epoch}.pt -- useful for
+        # long runs that might get killed/preempted (e.g. under heavy GPU
+        # contention) where only the final-epoch save from save_pinns()
+        # would otherwise be lost. Independent of track_best (this saves the
+        # CURRENT weights at fixed epoch intervals, not the best-so-far).
+        self.checkpoint_every  = checkpoint_every
+        self.checkpoint_dir    = checkpoint_dir
+        self.checkpoint_prefix = checkpoint_prefix
         # Residual histories populated during TD-PINNs training; used by
         # collocation_last_residual and collocation_mean_residual.
         self._last_residual = None  # (x_ref, mag_abs) from final epoch of prev step
@@ -293,7 +306,8 @@ class PINTrainer:
             error_now = (epoch % self.error_every == 0)
 
             if self.verbose and log_now:
-                print(f"  [{label}] epoch {epoch:5d} | loss {loss.item():.4e}")
+                err_str = f" | real_error {error_cb():.4e}" if error_cb is not None else ""
+                print(f"  [{label}] epoch {epoch:5d} | loss {loss.item():.4e}{err_str}")
 
             if error_now:
                 entry = {"label": label, "epoch": epoch, "loss": final_loss}
@@ -303,6 +317,14 @@ class PINTrainer:
 
             if epoch_callback is not None and log_now:
                 epoch_callback(epoch)
+
+            if self.checkpoint_every and epoch % self.checkpoint_every == 0:
+                import os as _os
+                _os.makedirs(self.checkpoint_dir, exist_ok=True)
+                torch.save(
+                    net.state_dict(),
+                    _os.path.join(self.checkpoint_dir, f"{self.checkpoint_prefix}_epoch{epoch}.pt"),
+                )
 
             if refine_on:
                 if win_start is None:

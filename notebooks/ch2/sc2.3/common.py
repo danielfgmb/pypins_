@@ -61,20 +61,20 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 X0, XF = -1.0, 1.0
 K_LIST = [1, 2, 4, 8, 16]
 FORMS  = ['strong', 'weak_projection', 'agnostic']
-N_TEST_AGNOSTIC = 20
+N_TEST_AGNOSTIC = 100   # was 20 -- too few modes to resolve k up to 16
 
 LAYERS   = (1, 20, 20, 1)
-N_COLLOC = 200
+N_COLLOC = 10000  # was 200 -> 1000 -> 10000 -- 1000 was still noisy/coarse
+                  # for weak_projection's Monte Carlo estimate and agnostic's
+                  # trapezoid quadrature against 100 Legendre modes
 N_EVAL   = 500
-N_TEST   = 20
-EPOCHS   = 100000   # bumped 8000 -> 10000 -> 100000: agnostic's low-k gap
-                    # vs strong/weak_projection didn't budge from 8k->10k
-                    # epochs (not a training-budget issue), but strong's
-                    # high-k blowup got WORSE with more epochs (actively
-                    # diverging, not underfitting) -- pushing further to see
-                    # if that trend holds at 10x the epochs.
+N_TEST   = 100    # was 20 -- too few modes to resolve k up to 16
+EPOCHS   = 100000   # back up to 100k -- 10k epochs wasn't enough to converge
+                    # 100 simultaneous test-function constraints (agnostic's
+                    # k=16 result collapsed to the trivial u=0 solution)
 LR       = 2e-3
 BC_WEIGHT = 10.0
+ERROR_EVERY = 2000   # epoch interval for real (vs exact) error tracking during training
 
 X_DIM = PINSpatialDimension('x', domain=(X0, XF), n_colloc=N_COLLOC)
 

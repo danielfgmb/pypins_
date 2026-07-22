@@ -1,0 +1,15 @@
+[vanilla_agnostic_nu0p001] device=cuda scheme=VANILLA nu=0.001 epochs=10000 ic_epochs=None tol=-1e+18
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  1000 | loss 1.5802e-03 | real_error 1.5977e-01
+  [VANILLA] epoch  2000 | loss -4.4850e-05 | real_error 1.5759e-01
+  [VANILLA] epoch  3000 | loss 1.3704e-03 | real_error 1.5718e-01
+  [VANILLA] epoch  4000 | loss -2.1781e-03 | real_error 1.5707e-01
+  [VANILLA] epoch  5000 | loss 1.1189e-03 | real_error 1.5706e-01
+  [VANILLA] epoch  6000 | loss 1.6025e-03 | real_error 1.5708e-01
+  [VANILLA] epoch  7000 | loss 3.5290e-04 | real_error 1.5703e-01
+  [VANILLA] epoch  8000 | loss 3.8511e-05 | real_error 1.5702e-01
+  [VANILLA] epoch  9000 | loss -6.5883e-04 | real_error 1.5702e-01
+  [VANILLA] epoch 10000 | loss 9.5427e-04 | real_error 1.5703e-01
+[vanilla_agnostic_nu0p001] done | epochs=10000 | wall 81.2s
+Saved 1 network(s) [MLP / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.2/checkpoints/vanilla_agnostic_nu0p001.pt'
+[vanilla_agnostic_nu0p001] DONE marker written

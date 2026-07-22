@@ -158,7 +158,7 @@ N_TEST_T   = 10   # agnostic (Vanilla weak-time variant only): plain Legendre
 _UNREACHABLE_TOL = -1e18
 IC_EPOCHS, TD_EPOCHS = 10000, 100000        # per-step budgets, same as sc2.1
 TD_TOL = _UNREACHABLE_TOL
-VAN_EPOCHS = IC_EPOCHS + NT * TD_EPOCHS      # 10000 + 12*100000 = 1,210,000
+VAN_EPOCHS = IC_EPOCHS + NT * TD_EPOCHS      # 10000 + 4*100000 = 410,000
 VAN_TOL    = _UNREACHABLE_TOL
 
 ERROR_EVERY = 1000
@@ -321,69 +321,66 @@ def td_agnostic_loss(u, u_prev, x, dt, nu):
     return (R ** 2).mean()
 
 def vanilla_agnostic_loss(u, t, x, nu):
-    """Weak-in-space / strong-in-time loss for Vanilla PINNs (form='agnostic'),
-    nu > 0: u_t via autograd, spatial part weakened via IBP against vanishing
-    Legendre tests with a real per-time-slice trapezoid quadrature (same
-    spatial machinery as td_agnostic_loss) -- not the previous space-time
-    Monte Carlo estimate. See sc2.1/NOTA_agnostic_v2.md.
+    """Space-weak-ONLY loss for Vanilla PINNs (form='agnostic'), nu > 0:
+    u_t exact via autograd (NOT weakened in time), tested only against
+    spatial vanishing-Legendre tests v_k(x). Monte Carlo + two-sample trick
+    -- see sc2.1/NOTA_perdida_negativa.md. No tensor-product
+    time_colloc_nodes plumbing needed.
 
-    Requires several collocation points sharing the exact same t (grouped via
-    torch.unique) -- PINTrainer must be constructed with
-    time_colloc_nodes=VANILLA_AGNOSTIC_TIME_NODES for that; see
-    pinns_framework/trainer.py's time_colloc_nodes docstring."""
+    IMPORTANT: distinct from vanilla_agnostic_weak_time_loss below (which
+    additionally tests against temporal basis psi_m(t), product basis
+    v_k(x)*psi_m(t)) -- keep them structurally different or they collapse to
+    the same method (caught by their outputs matching bit-for-bit on the
+    same batch during this session's first attempt at this revert).
+
+    Splits the batch into two independent halves A, B; loss is R_A*R_B
+    (unbiased: E[R_A*R_B] = R_k^2, no MC-noise-floor bias), NOT R_hat^2
+    (always >= 0 but biased upward by Var(R_hat), never reaching zero even
+    at convergence). This CAN and regularly DOES go negative near
+    convergence -- expected, not a bug. Only the real error (tracked
+    separately via error_fn) should be judged, not this loss's sign/value."""
     u_t = torch.autograd.grad(u.sum(), t, create_graph=True)[0]
     u_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
 
-    t_flat = t.view(-1).detach()
-    losses = []
-    for tv in torch.unique(t_flat):
-        m = (t_flat == tv)
-        xm, um, utm, uxm = x[m], u[m], u_t[m], u_x[m]
-        if xm.numel() < N_TEST_AGNOSTIC + 2:
-            continue
-        idx, V, dVdx, w = _spatial_weak_setup(xm)
-        us, uts, uxs = um[idx], utm[idx], uxm[idx]
-        R = (_project(w, uts, V)
-             - _project(w, 0.5 * us**2, dVdx)
-             + nu * _project(w, uxs, dVdx))
-        losses.append((R ** 2).mean())
-    return torch.stack(losses).mean()
+    L  = XF - X0
+    xi = (2.0 * (x - X0) / L - 1.0).detach()
+
+    V, dV_dxi = _vanishing_tests(xi, N_TEST_AGNOSTIC)
+    dV_dx = dV_dxi * (2.0 / L)
+
+    F_u = 0.5 * u ** 2
+    f = u_t * V - F_u * dV_dx + nu * u_x * dV_dx   # (N, Kx)
+
+    N = f.shape[0]
+    half = N // 2
+    R_A = f[:half].mean(dim=0) * SPACETIME_VOLUME
+    R_B = f[half:2 * half].mean(dim=0) * SPACETIME_VOLUME
+    return (R_A * R_B).mean()
 
 def vanilla_agnostic_weak_time_loss(u, t, x, nu):
-    """Weak in BOTH space and time: tests the residual against a product
-    Legendre basis Phi_{k,m}(x,t) = v_k(x) * psi_m(t) instead of just v_k(x)
-    -- K_x*K_t orthogonality conditions instead of K_x. u_t is still exact
-    via autograd (not integrated by parts in time). Real 2D quadrature
-    (trapezoid in time x trapezoid in space per node), no Monte Carlo.
-    Requires PINTrainer(time_colloc_nodes=VANILLA_AGNOSTIC_WEAK_TIME_NODES).
-    See sc2.1/common.py and sc2.1/NOTA_agnostic_v2.md for the full derivation
-    (identical machinery, just this module's own T_END/NU)."""
+    """Space+time weak, product test basis Phi=v_k(x)*psi_m(t), Monte Carlo
+    + two-sample trick (see sc2.1/NOTA_perdida_negativa.md) -- same pattern
+    as vanilla_agnostic_loss above but WITH temporal test functions psi_m(t).
+    No tensor-product time_colloc_nodes plumbing needed."""
     u_t = torch.autograd.grad(u.sum(), t, create_graph=True)[0]
     u_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
 
-    t_flat = t.view(-1).detach()
-    t_unique = torch.unique(t_flat)
-    if t_unique.numel() < N_TEST_T + 2:
-        raise RuntimeError(
-            f"vanilla_agnostic_weak_time_loss needs >= {N_TEST_T + 2} distinct t "
-            f"values per batch (got {t_unique.numel()}) -- set "
-            f"PINTrainer(time_colloc_nodes=VANILLA_AGNOSTIC_WEAK_TIME_NODES)."
-        )
-    tw  = _trapz_weights(t_unique.view(-1, 1)).view(-1)
-    tau = (2.0 * t_unique.view(-1, 1) / T_END - 1.0)
+    L   = XF - X0
+    xi  = (2.0 * (x - X0) / L - 1.0).detach()
+    tau = (2.0 * t / T_END - 1.0).detach()
+
+    V, dV_dxi = _vanishing_tests(xi, N_TEST_AGNOSTIC)
+    dV_dx = dV_dxi * (2.0 / L)
     Psi = _legendre_plain(tau, N_TEST_T)
 
-    R = None
-    for j, tv in enumerate(t_unique):
-        m = (t_flat == tv)
-        xm, um, utm, uxm = x[m], u[m], u_t[m], u_x[m]
-        if xm.numel() < N_TEST_AGNOSTIC + 2:
-            continue
-        idx, V, dVdx, w = _spatial_weak_setup(xm)
-        us, uts, uxs = um[idx], utm[idx], uxm[idx]
-        Rk = (_project(w, uts, V)
-              - _project(w, 0.5 * us**2, dVdx)
-              + nu * _project(w, uxs, dVdx))
-        contrib = tw[j] * Rk.unsqueeze(1) * Psi[j].unsqueeze(0)
-        R = contrib if R is None else R + contrib
-    return (R ** 2).mean()
+    Phi     = (V.unsqueeze(2)     * Psi.unsqueeze(1)).reshape(x.shape[0], -1).detach()
+    dPhi_dx = (dV_dx.unsqueeze(2) * Psi.unsqueeze(1)).reshape(x.shape[0], -1).detach()
+
+    F_u = 0.5 * u ** 2
+    f = u_t * Phi - F_u * dPhi_dx + nu * u_x * dPhi_dx
+
+    N = f.shape[0]
+    half = N // 2
+    R_A = f[:half].mean(dim=0) * SPACETIME_VOLUME
+    R_B = f[half:2 * half].mean(dim=0) * SPACETIME_VOLUME
+    return (R_A * R_B).mean()

@@ -10,3 +10,45 @@
   epoch 16000 | pde 1.8761e-03 | bc 8.9744e-06
   epoch 18000 | pde 4.2414e-04 | bc 2.1736e-06
   epoch 20000 | pde 1.5622e-03 | bc 1.2747e-06
+  epoch 22000 | pde 1.0733e-03 | bc 6.4693e-06
+  epoch 24000 | pde 1.0624e-03 | bc 1.6321e-05
+  epoch 26000 | pde 4.5085e-04 | bc 1.5348e-06
+  epoch 28000 | pde 5.0915e-04 | bc 5.4238e-06
+  epoch 30000 | pde 6.7930e-04 | bc 1.5010e-05
+  epoch 32000 | pde 8.7150e-04 | bc 2.9324e-06
+  epoch 34000 | pde 1.8099e-04 | bc 5.6580e-06
+  epoch 36000 | pde 3.5892e-04 | bc 6.3215e-06
+  epoch 38000 | pde 1.0771e-03 | bc 2.6825e-06
+  epoch 40000 | pde 9.3472e-03 | bc 6.9378e-06
+  epoch 42000 | pde 5.7442e-04 | bc 2.0233e-06
+  epoch 44000 | pde 2.9660e-03 | bc 1.8111e-06
+  epoch 46000 | pde 7.9961e-03 | bc 3.5445e-05
+  epoch 48000 | pde 8.9605e-05 | bc 6.3796e-07
+  epoch 50000 | pde 5.7035e-04 | bc 6.8056e-07
+  epoch 52000 | pde 1.0457e-02 | bc 4.0290e-05
+  epoch 54000 | pde 1.2166e-03 | bc 6.9077e-07
+  epoch 56000 | pde 3.3899e-02 | bc 9.2724e-05
+  epoch 58000 | pde 1.3255e-02 | bc 1.2930e-05
+  epoch 60000 | pde 8.3505e-03 | bc 5.0499e-05
+  epoch 62000 | pde 5.2959e-03 | bc 5.0507e-07
+  epoch 64000 | pde 3.9117e-04 | bc 7.3353e-07
+  epoch 66000 | pde 8.7498e-04 | bc 2.9696e-06
+  epoch 68000 | pde 1.1476e-03 | bc 2.1091e-06
+  epoch 70000 | pde 1.8329e-04 | bc 1.7945e-06
+  epoch 72000 | pde 4.4505e-04 | bc 3.1752e-06
+  epoch 74000 | pde 9.4048e-05 | bc 4.0975e-08
+  epoch 76000 | pde 9.5326e-03 | bc 6.4846e-05
+  epoch 78000 | pde 1.9342e-02 | bc 3.9040e-04
+  epoch 80000 | pde 2.4009e-04 | bc 7.1050e-07
+  epoch 82000 | pde 5.0829e-05 | bc 8.2626e-07
+  epoch 84000 | pde 1.5746e-04 | bc 2.0892e-07
+  epoch 86000 | pde 1.1533e-03 | bc 5.5687e-06
+  epoch 88000 | pde 5.2015e-04 | bc 1.0971e-06
+  epoch 90000 | pde 6.9283e-04 | bc 8.5151e-08
+  epoch 92000 | pde 1.0222e-04 | bc 3.2031e-07
+  epoch 94000 | pde 2.5538e-03 | bc 7.8415e-05
+  epoch 96000 | pde 1.9183e-03 | bc 6.6203e-06
+  epoch 98000 | pde 1.4226e-04 | bc 1.4294e-07
+  epoch 99999 | pde 2.3614e-04 | bc 1.1374e-07
+[strong_k2] done | wall 618.3s | rel_L2 7.9754e-04
+[strong_k2] DONE marker written

@@ -1,0 +1,9 @@
+[agnostic_k2] device=cuda form=agnostic k=2 epochs=10000
+  epoch     0 | pde 2.0643e+01 | bc 3.3097e-02
+  epoch  2000 | pde 2.1431e+00 | bc 1.3219e-03
+  epoch  4000 | pde 2.4554e+00 | bc 1.3220e-03
+  epoch  6000 | pde 1.9033e+00 | bc 1.3929e-03
+  epoch  8000 | pde 1.8707e+00 | bc 9.7098e-05
+  epoch  9999 | pde 1.9105e+00 | bc 8.4737e-04
+[agnostic_k2] done | wall 208.1s | rel_L2 9.3818e-01
+[agnostic_k2] DONE marker written

@@ -1,0 +1,10 @@
+[vanilla_agnostic_nu0p005] device=cuda scheme=VANILLA nu=0.005 epochs=10000 ic_epochs=None tol=-1e+18
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  1000 | loss 3.9472e-04 | real_error 7.6597e-02
+  [VANILLA] epoch  2000 | loss 1.1035e-03 | real_error 6.6351e-02
+  [VANILLA] epoch  3000 | loss 2.4267e-05 | real_error 5.5230e-02
+  [VANILLA] epoch  4000 | loss 3.1873e-05 | real_error 5.3519e-02
+  [VANILLA] epoch  5000 | loss 2.0845e-05 | real_error 5.3452e-02
+  [VANILLA] epoch  6000 | loss 3.2988e-05 | real_error 5.3337e-02
+  [VANILLA] epoch  7000 | loss 1.3762e-05 | real_error 5.3130e-02
+  [VANILLA] epoch  8000 | loss 3.2683e-05 | real_error 5.3236e-02

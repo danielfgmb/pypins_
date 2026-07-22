@@ -1,0 +1,9 @@
+[weak_projection_k2] device=cuda form=weak_projection k=2 epochs=10000
+  epoch     0 | pde 3.5306e-02 | bc 3.3097e-02
+  epoch  2000 | pde 3.7535e-02 | bc 1.4917e-09
+  epoch  4000 | pde 3.1936e-02 | bc 1.4041e-06
+  epoch  6000 | pde 1.2247e-02 | bc 8.8693e-08
+  epoch  8000 | pde 8.3575e-03 | bc 1.6685e-06
+  epoch  9999 | pde 4.6428e-03 | bc 4.7719e-05
+[weak_projection_k2] done | wall 181.4s | rel_L2 9.5517e-01
+[weak_projection_k2] DONE marker written

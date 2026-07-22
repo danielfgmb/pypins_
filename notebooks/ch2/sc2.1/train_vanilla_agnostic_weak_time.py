@@ -21,7 +21,7 @@ no Monte Carlo -- (R**2).mean() is squaring a deterministic estimate, no bias
 correction needed. See vanilla_agnostic_weak_time_loss's docstring and
 NOTA_agnostic_v2.md.
 """
-import time, json
+import argparse, time, json
 import numpy as np
 import torch
 import pandas as pd
@@ -29,7 +29,7 @@ import pandas as pd
 from common import (
     DEVICE, PARAMS_VAN, T_END, TIMES, LR, MAX_LR, MIN_LR,
     IC_WEIGHT, BC_WEIGHT, PDE_WEIGHT, N_EVAL, VAN_EPOCHS, VAN_TOL, ERROR_EVERY,
-    COLLOCATION_FN_AGNOSTIC_SAFE, X_IC, U_IC, X_BC, U_BC, X_DIM, NU, VANILLA_AGNOSTIC_WEAK_TIME_NODES,
+    COLLOCATION_FN_AGNOSTIC_SAFE, X_IC, U_IC, X_BC, U_BC, X_DIM, NU,
     vanilla_agnostic_weak_time_loss, real_error_vanilla, exact_fn, add_L1, TimeSlice, RESULTS_DIR, CHECKPOINTS_DIR,
 )
 from pinns_framework import (
@@ -40,8 +40,14 @@ NAME = 'vanilla_agnostic_weak_time'
 
 
 def main():
-    print(f'[{NAME}] device={DEVICE} epochs={VAN_EPOCHS} tol={VAN_TOL} '
-          f'time_colloc_nodes={VANILLA_AGNOSTIC_WEAK_TIME_NODES}')
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--epochs', type=int, default=None)
+    ap.add_argument('--checkpoint-every', type=int, default=None)
+    args = ap.parse_args()
+    epochs = args.epochs if args.epochs is not None else VAN_EPOCHS
+
+    print(f'[{NAME}] device={DEVICE} epochs={epochs} tol={VAN_TOL} '
+          f'checkpoint_every={args.checkpoint_every}')
     print(f'[{NAME}] using collocation_uniform (see module docstring).')
     torch.manual_seed(0)
     np.random.seed(0)
@@ -50,11 +56,12 @@ def main():
     net = PINArchitecture('MLP', PARAMS_VAN)
     trainer = PINTrainer(
         net=net, scheme='VANILLA', loss_fn=loss_fn, spatial_dims=[X_DIM],
-        epochs=VAN_EPOCHS, lr=LR, max_lr=MAX_LR, min_lr=MIN_LR, tolerance=VAN_TOL,
+        epochs=epochs, lr=LR, max_lr=MAX_LR, min_lr=MIN_LR, tolerance=VAN_TOL,
         ic_weight=IC_WEIGHT, bc_weight=BC_WEIGHT, pde_weight=PDE_WEIGHT,
-        collocation_fn=COLLOCATION_FN_AGNOSTIC_SAFE, device=DEVICE, verbose=True, log_every=2000,
+        collocation_fn=COLLOCATION_FN_AGNOSTIC_SAFE, device=DEVICE, verbose=True, log_every=1000,
         track_best=True, error_fn=real_error_vanilla, error_every=ERROR_EVERY,
-        time_colloc_nodes=VANILLA_AGNOSTIC_WEAK_TIME_NODES,
+        checkpoint_every=args.checkpoint_every, checkpoint_dir=f'{CHECKPOINTS_DIR}/{NAME}_ckpts',
+        checkpoint_prefix=NAME,
     )
 
     t0 = time.perf_counter()

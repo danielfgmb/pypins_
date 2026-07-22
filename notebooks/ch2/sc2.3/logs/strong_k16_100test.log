@@ -1,0 +1,9 @@
+[strong_k16] device=cuda form=strong k=16 epochs=10000
+  epoch     0 | pde 3.0815e+06 | bc 3.3097e-02
+  epoch  2000 | pde 3.2476e+06 | bc 1.2998e+01
+  epoch  4000 | pde 1.7619e+06 | bc 1.0813e+02
+  epoch  6000 | pde 1.6402e+06 | bc 1.1423e+02
+  epoch  8000 | pde 1.5248e+06 | bc 4.4666e+01
+  epoch  9999 | pde 1.6373e+06 | bc 2.5134e+01
+[strong_k16] done | wall 60.4s | rel_L2 2.3978e+01
+[strong_k16] DONE marker written

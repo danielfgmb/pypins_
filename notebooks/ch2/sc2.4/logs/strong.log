@@ -1,0 +1,6 @@
+[strong] device=cuda epochs=2000 nu=0.02
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  2000 | loss 3.0809e-05
+[strong] done | epochs=2000 | wall 32.9s
+Saved 1 network(s) [MLP / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.4/checkpoints/strong.pt'
+[strong] DONE marker written

@@ -38,3 +38,54 @@
   [step 2] epoch 60000 | loss 4.1827e-06
   [step 2] epoch 65000 | loss 1.2061e-06
   [step 2] epoch 70000 | loss 6.2018e-06
+  [step 2] epoch 75000 | loss 4.3647e-06
+  [step 2] epoch 80000 | loss 4.3442e-06
+  [step 2] epoch 85000 | loss 3.3048e-05
+  [step 2] epoch 90000 | loss 2.2902e-06
+  [step 2] epoch 95000 | loss 4.1379e-06
+  [step 2] epoch 100000 | loss 3.7820e-06
+=== TD-PINNs | step 3/4  (t = 0.45) ===
+  [step 3] epoch  5000 | loss 1.0996e-05
+  [step 3] epoch 10000 | loss 1.3480e-06
+  [step 3] epoch 15000 | loss 2.1608e-06
+  [step 3] epoch 20000 | loss 2.3935e-06
+  [step 3] epoch 25000 | loss 2.0267e-06
+  [step 3] epoch 30000 | loss 5.7041e-06
+  [step 3] epoch 35000 | loss 1.5434e-06
+  [step 3] epoch 40000 | loss 1.1037e-05
+  [step 3] epoch 45000 | loss 2.1098e-06
+  [step 3] epoch 50000 | loss 5.0543e-06
+  [step 3] epoch 55000 | loss 1.0714e-06
+  [step 3] epoch 60000 | loss 9.7632e-07
+  [step 3] epoch 65000 | loss 5.1489e-06
+  [step 3] epoch 70000 | loss 2.0564e-05
+  [step 3] epoch 75000 | loss 2.0250e-06
+  [step 3] epoch 80000 | loss 1.6906e-06
+  [step 3] epoch 85000 | loss 2.4128e-06
+  [step 3] epoch 90000 | loss 2.0500e-05
+  [step 3] epoch 95000 | loss 8.3170e-07
+  [step 3] epoch 100000 | loss 1.4335e-06
+=== TD-PINNs | step 4/4  (t = 0.6) ===
+  [step 4] epoch  5000 | loss 1.6682e-05
+  [step 4] epoch 10000 | loss 7.5944e-06
+  [step 4] epoch 15000 | loss 9.9931e-06
+  [step 4] epoch 20000 | loss 7.1625e-06
+  [step 4] epoch 25000 | loss 6.8643e-06
+  [step 4] epoch 30000 | loss 6.2056e-06
+  [step 4] epoch 35000 | loss 7.8955e-06
+  [step 4] epoch 40000 | loss 2.8389e-06
+  [step 4] epoch 45000 | loss 9.4538e-06
+  [step 4] epoch 50000 | loss 1.5269e-05
+  [step 4] epoch 55000 | loss 1.2725e-05
+  [step 4] epoch 60000 | loss 3.2973e-05
+  [step 4] epoch 65000 | loss 7.9405e-05
+  [step 4] epoch 70000 | loss 4.1152e-05
+  [step 4] epoch 75000 | loss 1.8826e-05
+  [step 4] epoch 80000 | loss 6.4462e-06
+  [step 4] epoch 85000 | loss 1.8332e-06
+  [step 4] epoch 90000 | loss 1.6216e-06
+  [step 4] epoch 95000 | loss 9.9007e-06
+  [step 4] epoch 100000 | loss 8.3794e-06
+[td_agnostic_nu0p01] done | epochs=400000 | wall 5473.5s
+Saved 5 network(s) [MLP / TD-PINNs] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.2/checkpoints/td_agnostic_nu0p01.pt'
+[td_agnostic_nu0p01] DONE marker written

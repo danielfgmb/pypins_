@@ -66,10 +66,8 @@ def build(method, nu):
                                    n_test=N_TEST, domain_volume=SPACETIME_VOLUME)
     elif method == 'vanilla_agnostic':
         loss_fn = PINLossFunction([X_DIM], vanilla_agnostic_loss, form='agnostic')
-        time_colloc_nodes = VANILLA_AGNOSTIC_TIME_NODES
     elif method == 'vanilla_agnostic_weak_time':
         loss_fn = PINLossFunction([X_DIM], vanilla_agnostic_weak_time_loss, form='agnostic')
-        time_colloc_nodes = VANILLA_AGNOSTIC_WEAK_TIME_NODES
     else:
         raise ValueError(f'unknown method {method!r}')
 
@@ -83,6 +81,8 @@ def main():
     ap.add_argument('--ic-epochs', type=int, default=None)
     ap.add_argument('--pde-epochs', type=int, default=None)
     ap.add_argument('--van-epochs', type=int, default=None)
+    ap.add_argument('--checkpoint-every', type=int, default=None)
+    ap.add_argument('--log-every', type=int, default=5000)
     args = ap.parse_args()
 
     method, nu = args.method, args.nu
@@ -106,13 +106,17 @@ def main():
         net=net, scheme=scheme, loss_fn=loss_fn, spatial_dims=[X_DIM],
         epochs=epochs, dt=DT, lr=LR, max_lr=MAX_LR, min_lr=MIN_LR, tolerance=tol,
         ic_weight=IC_WEIGHT, bc_weight=BC_WEIGHT, pde_weight=PDE_WEIGHT,
-        collocation_fn=COLLOCATION_FN, device=DEVICE, verbose=True, log_every=5000,
+        collocation_fn=COLLOCATION_FN, device=DEVICE, verbose=True, log_every=args.log_every,
         track_best=True, error_fn=err_fn, error_every=ERROR_EVERY,
     )
     if scheme == 'TD-PINNS':
         kwargs['ic_epochs'] = ic_ep
     if time_colloc_nodes is not None:
         kwargs['time_colloc_nodes'] = time_colloc_nodes
+    if args.checkpoint_every is not None:
+        kwargs['checkpoint_every'] = args.checkpoint_every
+        kwargs['checkpoint_dir'] = f'{CHECKPOINTS_DIR}/{NAME}_ckpts'
+        kwargs['checkpoint_prefix'] = NAME
     trainer = PINTrainer(**kwargs)
 
     t0 = time.perf_counter()

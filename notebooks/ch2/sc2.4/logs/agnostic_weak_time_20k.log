@@ -1,0 +1,25 @@
+[agnostic_weak_time] device=cuda epochs=20000 nu=0.02 checkpoint_every=2000
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  1000 | loss 3.5806e-02 | real_error 1.3427e-01
+  [VANILLA] epoch  2000 | loss -1.6982e-02 | real_error 7.0799e-02
+  [VANILLA] epoch  3000 | loss 3.6434e-02 | real_error 7.7589e-02
+  [VANILLA] epoch  4000 | loss 3.6655e-03 | real_error 7.4878e-02
+  [VANILLA] epoch  5000 | loss 4.4559e-02 | real_error 7.4884e-02
+  [VANILLA] epoch  6000 | loss -5.0231e-02 | real_error 7.5043e-02
+  [VANILLA] epoch  7000 | loss 4.4947e-02 | real_error 7.4831e-02
+  [VANILLA] epoch  8000 | loss 3.9126e-02 | real_error 7.5032e-02
+  [VANILLA] epoch  9000 | loss -7.0887e-02 | real_error 7.4948e-02
+  [VANILLA] epoch 10000 | loss -6.9709e-02 | real_error 7.4858e-02
+  [VANILLA] epoch 11000 | loss 1.0945e-01 | real_error 7.4911e-02
+  [VANILLA] epoch 12000 | loss -6.9387e-02 | real_error 7.5087e-02
+  [VANILLA] epoch 13000 | loss -4.3229e-02 | real_error 7.5005e-02
+  [VANILLA] epoch 14000 | loss -7.5202e-02 | real_error 7.5033e-02
+  [VANILLA] epoch 15000 | loss -1.8905e-02 | real_error 7.4981e-02
+  [VANILLA] epoch 16000 | loss -2.6881e-02 | real_error 7.5007e-02
+  [VANILLA] epoch 17000 | loss 7.3075e-02 | real_error 7.5039e-02
+  [VANILLA] epoch 18000 | loss 6.1833e-02 | real_error 7.5034e-02
+  [VANILLA] epoch 19000 | loss -3.5394e-03 | real_error 7.4981e-02
+  [VANILLA] epoch 20000 | loss 6.9087e-02 | real_error 7.4902e-02
+[agnostic_weak_time] done | epochs=20000 | wall 191.7s
+Saved 1 network(s) [MLP / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.4/checkpoints/agnostic_weak_time.pt'
+[agnostic_weak_time] DONE marker written

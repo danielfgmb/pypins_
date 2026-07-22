@@ -1,0 +1,6 @@
+[agnostic] device=cuda epochs=2000 nu=0.02
+=== Vanilla PINNs | training over full (t, x) domain ===
+  [VANILLA] epoch  2000 | loss 1.9200e-02
+[agnostic] done | epochs=2000 | wall 272.2s
+Saved 1 network(s) [MLP / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.4/checkpoints/agnostic.pt'
+[agnostic] DONE marker written

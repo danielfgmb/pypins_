@@ -32,6 +32,7 @@ METHODS = {
     'Vanilla (strong)':           ('vanilla_strong',          'tab:purple'),
     'Vanilla (weak_projection)':  ('vanilla_weak_projection', 'tab:orange'),
     'Vanilla (agnostic)':         ('vanilla_agnostic',        'tab:red'),
+    'Vanilla (agnostic weak-t)':  ('vanilla_agnostic_weak_time', 'tab:brown'),
 }
 
 
