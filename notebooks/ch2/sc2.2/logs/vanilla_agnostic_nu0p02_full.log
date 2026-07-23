@@ -4,3 +4,43 @@
   [VANILLA] epoch 20000 | loss 2.4319e-03 | real_error 1.1747e-01
   [VANILLA] epoch 30000 | loss -1.4241e-03 | real_error 1.1731e-01
   [VANILLA] epoch 40000 | loss -3.7608e-03 | real_error 1.1686e-01
+  [VANILLA] epoch 50000 | loss 9.5679e-04 | real_error 1.1641e-01
+  [VANILLA] epoch 60000 | loss 7.4167e-04 | real_error 1.1659e-01
+  [VANILLA] epoch 70000 | loss 3.8298e-03 | real_error 1.1601e-01
+  [VANILLA] epoch 80000 | loss 2.0847e-03 | real_error 1.1593e-01
+  [VANILLA] epoch 90000 | loss 4.4339e-03 | real_error 1.1552e-01
+  [VANILLA] epoch 100000 | loss 3.2472e-03 | real_error 1.1545e-01
+  [VANILLA] epoch 110000 | loss -2.9287e-02 | real_error 1.1514e-01
+  [VANILLA] epoch 120000 | loss -2.8710e-03 | real_error 1.1493e-01
+  [VANILLA] epoch 130000 | loss -4.5131e-03 | real_error 1.1483e-01
+  [VANILLA] epoch 140000 | loss -1.9075e-02 | real_error 1.1479e-01
+  [VANILLA] epoch 150000 | loss 2.1681e-02 | real_error 1.1454e-01
+  [VANILLA] epoch 160000 | loss -6.0310e-03 | real_error 1.1432e-01
+  [VANILLA] epoch 170000 | loss -8.1149e-04 | real_error 1.1409e-01
+  [VANILLA] epoch 180000 | loss -3.7996e-04 | real_error 1.1377e-01
+  [VANILLA] epoch 190000 | loss -4.3170e-03 | real_error 1.1382e-01
+  [VANILLA] epoch 200000 | loss -1.8517e-02 | real_error 1.1355e-01
+  [VANILLA] epoch 210000 | loss -8.5210e-03 | real_error 1.1336e-01
+  [VANILLA] epoch 220000 | loss -4.7607e-03 | real_error 1.1359e-01
+  [VANILLA] epoch 230000 | loss 1.3594e-03 | real_error 1.1337e-01
+  [VANILLA] epoch 240000 | loss -8.0760e-03 | real_error 1.1296e-01
+  [VANILLA] epoch 250000 | loss 1.9359e-05 | real_error 1.1334e-01
+  [VANILLA] epoch 260000 | loss -2.0937e-03 | real_error 1.1271e-01
+  [VANILLA] epoch 270000 | loss -5.3189e-03 | real_error 1.1298e-01
+  [VANILLA] epoch 280000 | loss -1.3812e-02 | real_error 1.1231e-01
+  [VANILLA] epoch 290000 | loss 8.7025e-03 | real_error 1.1224e-01
+  [VANILLA] epoch 300000 | loss 9.8169e-03 | real_error 1.1226e-01
+  [VANILLA] epoch 310000 | loss -7.5799e-03 | real_error 1.1184e-01
+  [VANILLA] epoch 320000 | loss -5.2601e-03 | real_error 1.1219e-01
+  [VANILLA] epoch 330000 | loss 2.2490e-02 | real_error 1.1153e-01
+  [VANILLA] epoch 340000 | loss -1.3405e-02 | real_error 1.1146e-01
+  [VANILLA] epoch 350000 | loss -1.0687e-02 | real_error 1.1156e-01
+  [VANILLA] epoch 360000 | loss 2.7465e-03 | real_error 1.1114e-01
+  [VANILLA] epoch 370000 | loss 3.0773e-03 | real_error 1.1096e-01
+  [VANILLA] epoch 380000 | loss 4.7526e-03 | real_error 1.1134e-01
+  [VANILLA] epoch 390000 | loss 8.9740e-04 | real_error 1.1129e-01
+  [VANILLA] epoch 400000 | loss -2.6871e-03 | real_error 1.1089e-01
+  [VANILLA] epoch 410000 | loss -1.2280e-02 | real_error 1.1089e-01
+[vanilla_agnostic_nu0p02] done | epochs=410000 | wall 5104.1s
+Saved 1 network(s) [MLP / Vanilla] → '/home/df.gomezb/Tesis/notebooks/ch2/sc2.2/checkpoints/vanilla_agnostic_nu0p02.pt'
+[vanilla_agnostic_nu0p02] DONE marker written
