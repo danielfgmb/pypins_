@@ -1,23 +1,24 @@
 """
-Direct linear/nonlinear solves for PGDr-PIKAN (chapter 3). A single cell
-spanning the whole domain throughout -- no interior interfaces, so design
-doc SS2.5's flagged open risk (the interface flux) never comes up here;
-that is left for genuine multi-cell work (phase 2+, adaptive h-refinement).
+Direct linear/nonlinear solves for PGDr-PIKAN (chapter 3).
 
-solve_poisson_single_cell: one torch.linalg.solve, no time, no training loop
-(doc SS7 validation-ladder step 3).
+solve_poisson_single_cell / solve_burgers_single_cell: phase 1, a single
+cell spanning the whole domain -- no interior interfaces, so design doc
+SS2.5's flagged open risk (the interface flux) never comes up. One
+torch.linalg.solve (Poisson) or Crank-Nicolson + Newton (Burgers), no
+training loop.
 
-solve_burgers_single_cell: Crank-Nicolson time-marching + Newton per step on
-the semi-discrete system from doc SS2.4, still single-cell and still
-Bubnov-Galerkin ("one KAN layer", doc SS3.3's phase-1 caveat) -- the
-simplest possible exercise of the nonlinear flux tensor D before attempting
-genuine multi-cell marching (doc SS7 step 5, restricted here to one cell).
+solve_advection_diffusion_multi_cell: phase 2a, a genuine multi-cell mesh
+(mesh.py) -- the first solve that actually needs SS2.5's interface flux
+(upwind advective + SIPG viscous, mesh.assemble_advection_diffusion). Still
+one global torch.linalg.solve (steady, linear problem) -- Newton-across-cells
+for the nonlinear Burgers case is future work (phase 2c).
 """
 import numpy as np
 import torch
 
 from .ref_tensors import DTYPE, mass_matrix, stiffness_matrix, deriv_triple_matrix, legendre_basis, legendre_and_deriv
 from .assembly import jacobian_scale, dirichlet_recombination_basis, constant_dirichlet_lift
+from .mesh import assemble_advection_diffusion
 from .kan import project_to_legendre
 
 
@@ -212,3 +213,40 @@ def solve_burgers_single_cell(exact_fn, domain, nu, u_left, u_right, N, n_steps,
             snap_idx += 1
 
     return {'snapshots': results, 'newton_iters': newton_iters}
+
+
+def solve_advection_diffusion_multi_cell(mesh, N, a, nu, f_fn, exact_fn, g_left, g_right,
+                                          penalty_coeff=10.0, n_quad=200, n_eval=2000):
+    """d/dx(a*u) - nu*u'' = f on `mesh` (mesh.Mesh1D), u(lo)=g_left,
+    u(hi)=g_right -- design doc SS2, first solve that genuinely needs the
+    interface flux F_hat (SS2.5), via mesh.assemble_advection_diffusion
+    (upwind advective + SIPG viscous). One global torch.linalg.solve, still
+    no training loop, same spirit as solve_poisson_single_cell.
+
+    exact_fn(x) -- manufactured exact solution, used only to report
+    rel_L2/Linf on a fine eval grid.
+
+    Returns a dict: {'c': (n_cells, N) per-cell coefficients, 'rel_L2',
+    'Linf'}.
+    """
+    A, b = assemble_advection_diffusion(mesh, N, a, nu, f_fn, g_left, g_right,
+                                         penalty_coeff=penalty_coeff, n_quad=n_quad)
+    c_flat = torch.linalg.solve(A, b)
+    c = c_flat.view(mesh.n_cells, N)
+
+    lo, hi = mesh.edges[0], mesh.edges[-1]
+    x_eval = torch.linspace(lo, hi, n_eval, dtype=DTYPE)
+    u_pred = torch.empty_like(x_eval)
+    for e in range(mesh.n_cells):
+        lo_e, hi_e = mesh.cell(e)
+        mask = (x_eval >= lo_e) & (x_eval <= hi_e)
+        xi_e = 2.0 * (x_eval[mask] - lo_e) / (hi_e - lo_e) - 1.0
+        u_pred[mask] = (legendre_basis(xi_e, N) * c[e]).sum(dim=-1)
+    u_exact = exact_fn(x_eval)
+
+    diff = u_pred - u_exact
+    l2 = float(torch.sqrt((diff ** 2).mean()))
+    denom = float(torch.sqrt((u_exact ** 2).mean())) + 1e-12
+    linf = float(diff.abs().max())
+
+    return {'c': c, 'rel_L2': l2 / denom, 'Linf': linf}

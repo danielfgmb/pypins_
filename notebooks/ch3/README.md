@@ -1,13 +1,13 @@
 # Chapter 3 experiments — PGDr-PIKAN: a cell-local Legendre basis for KAN trial + Petrov–Galerkin test spaces
 
-**Status note:** this chapter is at the start of its validation ladder.
-`sc3.0` and `sc3.1` (validation-ladder steps 1–3) are complete and final.
-`sc3.2` runs the nonlinear Burgers benchmark (step 5's benchmark) but only
-in single-cell form, deliberately staying inside step 3's "no interfaces
-yet" restriction — it is a bridge experiment, not step 5 itself. Genuine
-multi-cell adaptive h-refinement (step 4), multi-cell marching (finishing
-step 5), and the global space–time mode (step 6) are **not built yet** and
-are described only as proposed follow-up work, not results.
+**Status note:** `sc3.0`–`sc3.4` below are complete and final (validation-
+ladder steps 1–4, plus a single-cell bridge experiment at step 5's
+benchmark). `sc3.2` ran the nonlinear Burgers benchmark but only in
+single-cell form; `sc3.3` then built genuine multi-cell interfaces (upwind +
+SIPG) on a linear problem; `sc3.4` added adaptive h-refinement on top of
+that, still linear. Retrying `sc3.2`'s failing sharp-shock case on a
+refined multi-cell mesh — i.e. actually finishing step 5 — and the global
+space–time mode (step 6) are **not built yet** (phase 2c, future work).
 
 Chapter 2 established that what actually gives a Physics-Informed Network
 robustness at high frequency / near shocks is avoiding the second derivative
@@ -224,29 +224,140 @@ everywhere to resolve one narrow feature.
 
 ---
 
-## 4. Known caveats / proposed follow-up work (not built yet)
+## 4. sc3.3 — multi-cell interfaces: the flux the doc calls "the sole unverified analytic component"
+
+**Why this experiment exists:** `sc3.1`/`sc3.2` avoided interior interfaces
+entirely (single cell, whole domain). Adaptive refinement needs a real
+multi-cell mesh, and a real mesh needs the one thing design doc §2.5 flags
+as its own biggest open risk: the **interface flux `F̂`**. This experiment
+isolates exactly that, on the simplest possible testbed — a **linear**,
+**steady** problem, so there's no Newton and no nonlinearity to confound
+whether the interfaces themselves are right.
+
+**Setup:** manufactured `d/dx(a*u) − ν·u'' = f`, `u_exact = sin(2πx)`,
+`x ∈ [0,1]`, `a=1`, `ν=0.05` — chosen (over pure Poisson) specifically to
+exercise **both** flux ingredients: `ref_tensors.convection_matrix`
+(verified since `sc3.0`, unused until now) via an **upwind** trace for the
+advective term, and a standard DG **symmetric interior penalty** (SIPG)
+treatment (consistency + symmetry + penalty, `sigma ~ N²/h`) for the
+viscous term. Boundary conditions are imposed **weakly**, via a ghost state
+fixed at the prescribed Dirichlet value and the *same* flux machinery used
+at interior faces — a deliberate change from `sc3.1`/`sc3.2`'s exact
+recombination trick, which only works for a single cell's own physical
+boundary. New modules: `pinns_framework/pgdr/mesh.py` (`Mesh1D`, global
+assembly) plus small helpers in `assembly.py` (`upwind_trace`,
+`sipg_penalty`).
+
+**Implementation note:** rather than hand-deriving and transcribing the
+SIPG/upwind weak form into explicit matrix blocks (very easy to get an
+interface sign wrong), the per-mode residual `R(c)` of the whole mesh is
+written directly as a plain function of the coefficient vector, and the
+linear system is recovered via `A = jacobian(R)`, `b = -R(0)`
+(`torch.autograd.functional.jacobian`) — the only thing that has to be
+right is the residual formula itself.
+
+**Results** (`results/summary_all.csv`, per-cell `N=30`):
+
+| n_cells | total DOF | rel_L2 |
+|---|---|---|
+| 1 | 30 | 4.78e-13 |
+| 2 | 60 | 5.18e-12 |
+| 4 | 120 | 1.88e-11 |
+| 8 | 240 | 1.34e-11 |
+| 16 | 480 | 1.92e-10 |
+
+`n_cells=1` reproduces `sc3.1`-style spectral accuracy exactly (confirms the
+new machinery is a strict generalization, not a different method); every
+`n_cells>1` case stays within a couple of decades of that — no accuracy
+leaking at interfaces. Also checked directly (not just in the table): the
+other upwind branch (`a<0`), a pure-diffusion case (`a=0`), and a wide
+sweep of the SIPG penalty constant (1 to 200) — all stayed near machine
+precision, i.e. the result isn't fragile to these choices.
+
+**Figures:** `sc3.3/figs/sc33_convergence.{png,pdf}`.
+
+---
+
+## 5. sc3.4 — adaptive h-refinement (validation-ladder step 4)
+
+**Setup:** the same operator as `sc3.3`, but with a manufactured solution
+deliberately hard for a *coarse uniform* mesh: a narrow Gaussian bump,
+`u_exact = exp(−(x−0.5)²/(2·0.015²))` — 1.5% of the domain width — starting
+from just 4 uniform cells (`N=10` each), which under-resolves it badly
+(`rel_L2≈5.8e-2`).
+
+Runs the full loop from design doc §4 — solve → indicate → mark → bisect
+→ transfer → resolve — via three new `pinns_framework/pgdr/refine.py`
+functions: `compute_indicators`, `dorfler_mark`, `refine_mesh`.
+
+**Adapting the doc's indicator for a direct solve (not training):** the
+doc's `η_e` formula assumes an iterative training context ("free — these
+are the loss terms already computed"). Reinterpreted here as a standard
+hierarchical a posteriori estimator: since Galerkin orthogonality makes the
+weak residual against test modes `0..N-1` exactly zero after solving, the
+*same* residual assembly (`mesh.residual`, volume + face terms together) is
+evaluated against a handful of **enriched** modes `N..N+3` using the
+already-solved coefficients — free (no new solve), and exactly where the
+real error lives.
+
+**Bisect + transfer:** marked cells split via `T^L`/`T^R`
+(`ref_tensors.transfer_matrices`, exactness confirmed in `sc3.0`). For this
+linear/direct-solve setting the transfer isn't required for correctness (a
+direct solve has no iterative state to warm-start) — used here mainly as a
+diagnostic; it becomes load-bearing once Newton warm-starts matter
+(nonlinear phase 2c).
+
+**One simplification worth stating plainly:** in 1D, bisecting a cell only
+ever introduces a *new interior* face at the midpoint — a cell's outer
+faces (shared with its neighbors) never move. So every interface in an
+adaptively-refined 1D mesh stays a clean, conforming one-cell-to-one-cell
+interface regardless of refinement history; the "non-conforming/hanging
+node" complication familiar from adaptive 2D/3D FEM simply doesn't arise
+here, and `sc3.3`'s interface code needed no extra generality to support it.
+
+**Results** (`results/summary_all.csv`, `theta=0.5` Dörfler marking):
+
+| round | n_cells | rel_L2 |
+|---|---|---|
+| 0 | 4 | 5.83e-2 |
+| 1 | 5 | 4.17e-2 |
+| 2 | 6 | 1.06e-2 |
+| 3 | 8 | 2.30e-4 |
+| 4 | 10 | 6.92e-7 |
+| 5 | 12 | 2.65e-7 |
+| 6 | 14 | 8.65e-8 |
+| 7 | 16 | 7.64e-10 |
+
+Error drops **8 orders of magnitude** over 7 rounds while cell count grows
+only linearly (4→16, not exponentially) — the indicator adds cells only
+where needed. `figs/sc34_mesh_density.png` makes this visible directly: the
+final mesh's cell edges concentrate tightly around `x=0.5` and stay coarse
+everywhere else, exactly the payoff `sc3.2` showed a single global cell
+could never get for its sharp shock.
+
+**Figures:** `sc3.4/figs/sc34_{convergence,mesh_density}.{png,pdf}`.
+
+---
+
+## 6. Known caveats / proposed follow-up work (not built yet)
 
 - **Bubnov–Galerkin only so far** — see `sc3.1`'s caveat above. Demonstrating
   the actual trial ≠ test Petrov–Galerkin mechanism needs a KAN with depth
   ≥ 2 solved nonlinearly in `theta` (or with inner layers frozen and only the
   outer layer solved directly per the design doc's §3.4 training fork) —
   not attempted yet.
-- **No multi-cell mesh / interface flux yet** — `sc3.1` and `sc3.2` are both
-  deliberately a single cell to sidestep the design doc's flagged open risk
-  (§2.5, the interface flux for the convective and viscous terms at cell
-  boundaries). This is the first thing needed for adaptive h-refinement
-  (step 4) and remains unverified. `sc3.2`'s `nu=0.02` result is the
-  concrete demonstration of *why* it's needed: a single global cell cannot
-  resolve a genuinely sharp front, no matter how many modes (see `sc3.2`
-  above) — refinement should let a handful of small cells near the shock do
-  what an impractically large global `N` would otherwise have to.
-- **Marching-mode Burgers exists only in single-cell form** — `sc3.2`
-  exercises Crank–Nicolson + Newton and the nonlinear flux tensor `D`
-  (`ref_tensors.deriv_triple_matrix`) for the first time in a real solve,
-  but step 5 of the validation ladder (proper multi-cell marching) still
-  needs the interface flux above; the global space–time mode (step 6, via
-  Kronecker assembly with the plain triple-product tensor `T`) hasn't been
-  started at all.
+- **Multi-cell interfaces and refinement are linear-only so far** — `sc3.3`
+  (interface flux) and `sc3.4` (h-refinement) both use the steady linear
+  advection-diffusion operator, specifically to validate the interface/
+  refinement machinery without nonlinear-solve complexity confounding
+  things. `sc3.2`'s `nu=0.02` Burgers failure is exactly the case this
+  machinery is meant to fix, but that retry — multi-cell, adaptive, and
+  nonlinear (Newton coupled across cells, plus a real Godunov/upwind flux
+  for `u²/2` instead of linear-advection's trivial upwind) — hasn't been
+  run yet. That's phase 2c, the natural next step.
+- **Global space–time mode (step 6)** — via Kronecker assembly with the
+  plain triple-product tensor `T` (`ref_tensors.triple_matrix`, verified
+  since `sc3.0`, still otherwise unused) — hasn't been started at all.
 - **Degree growth `p^L`** — not yet a concern at the depths tested (`p^L`
   up to 64 in `sc3.0`), but will need a truncation policy once deeper
   networks are used in a real solve rather than just a closure check.

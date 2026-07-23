@@ -73,3 +73,26 @@ def constant_dirichlet_lift(N, g_left, g_right):
     if N > 1:
         c[1] = (g_right - g_left) / 2.0
     return c
+
+
+def upwind_trace(a, u_left, u_right):
+    """Upwind numerical trace for a LINEAR advective flux a*u at one face,
+    given the trace value from the left cell (u_left) and the right cell
+    (u_right) (design doc SS2.5's convective flux, linear-advection special
+    case -- Burgers' actual flux u^2/2 needs the shock-dependent Godunov
+    flux instead, not this).
+
+    a >= 0 : flow left-to-right, upstream side is LEFT -> returns u_left
+    a <  0 : flow right-to-left, upstream side is RIGHT -> returns u_right
+    """
+    return u_left if a >= 0 else u_right
+
+
+def sipg_penalty(N, h, penalty_coeff=10.0):
+    """Symmetric-interior-penalty coefficient sigma = penalty_coeff * N^2 / h
+    for the viscous interface term (design doc SS2.5's flagged risk: "penalty
+    parameter scaling with p^2/h"). penalty_coeff is an empirical constant,
+    not derived -- tuned against a manufactured exact solution in
+    notebooks/ch3/sc3.3, not fixed in advance.
+    """
+    return penalty_coeff * (N ** 2) / h
