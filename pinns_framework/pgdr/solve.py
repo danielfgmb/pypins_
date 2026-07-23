@@ -1,16 +1,24 @@
 """
-Direct linear solves for PGDr-PIKAN (chapter 3). Phase 1 scope: a single
-cell spanning the whole domain, steady linear BVPs, solved by one
-torch.linalg.solve -- no training loop (design doc SS7 validation-ladder
-step 3: "linear solve vs exact solution"). Newton iteration (nonlinear
-Burgers) and Crank-Nicolson time-marching are added to this same module
-once that work starts (phase 2+) -- not stubbed here.
+Direct linear/nonlinear solves for PGDr-PIKAN (chapter 3). A single cell
+spanning the whole domain throughout -- no interior interfaces, so design
+doc SS2.5's flagged open risk (the interface flux) never comes up here;
+that is left for genuine multi-cell work (phase 2+, adaptive h-refinement).
+
+solve_poisson_single_cell: one torch.linalg.solve, no time, no training loop
+(doc SS7 validation-ladder step 3).
+
+solve_burgers_single_cell: Crank-Nicolson time-marching + Newton per step on
+the semi-discrete system from doc SS2.4, still single-cell and still
+Bubnov-Galerkin ("one KAN layer", doc SS3.3's phase-1 caveat) -- the
+simplest possible exercise of the nonlinear flux tensor D before attempting
+genuine multi-cell marching (doc SS7 step 5, restricted here to one cell).
 """
 import numpy as np
 import torch
 
-from .ref_tensors import DTYPE, stiffness_matrix, legendre_basis, legendre_and_deriv
-from .assembly import jacobian_scale, dirichlet_recombination_basis
+from .ref_tensors import DTYPE, mass_matrix, stiffness_matrix, deriv_triple_matrix, legendre_basis, legendre_and_deriv
+from .assembly import jacobian_scale, dirichlet_recombination_basis, constant_dirichlet_lift
+from .kan import project_to_legendre
 
 
 def _project_rhs(f_fn, domain, N, n_quad):
@@ -92,3 +100,115 @@ def solve_poisson_single_cell(f_fn, exact_fn, domain, N, n_quad=400, n_eval=2000
         'Linf': linf,
         'quad_vs_closed_form': quad_vs_closed_form,
     }
+
+
+def solve_burgers_single_cell(exact_fn, domain, nu, u_left, u_right, N, n_steps, T_end,
+                               snapshot_times=None, newton_tol=1e-10, newton_max_iter=20,
+                               n_eval=2000):
+    """u_t + (u^2/2)_x = nu*u_xx on `domain`, u(lo,t)=u_left, u(hi,t)=u_right
+    for all t (a CONSTANT-in-time Dirichlet BC -- valid here because the
+    caller is expected to have checked the domain edges sit far enough from
+    whatever moving feature exact_fn describes that the true boundary values
+    are constant to float round-off; see notebooks/ch3/sc3.2/common.py for
+    that check on the traveling-shock benchmark this was built for).
+
+    Single cell (no interior interfaces -- see module docstring), one KAN
+    layer (Bubnov-Galerkin, doc SS3.3's phase-1 caveat, same as
+    solve_poisson_single_cell). Non-homogeneous Dirichlet BCs are handled by
+    writing u = u_lift + w (assembly.constant_dirichlet_lift), with w's
+    coefficients solved for in the SAME vanishing-at-both-endpoints
+    recombined basis as the Poisson case -- testing against functions that
+    vanish at the domain edges makes the weak form's boundary bracket term
+    (doc SS2.2) drop out automatically, exactly as it did there; nothing
+    here needs SS2.5's (still unbuilt) interface flux.
+
+    Time-marched via Crank-Nicolson (doc SS2.4) with Newton's method solving
+    the nonlinear system at each step (the flux term is quadratic in the
+    unknown coefficients, via ref_tensors.deriv_triple_matrix -- the first
+    real exercise of that tensor in an actual solve).
+
+    Returns a dict: {t: {'c': (N,) coeffs, 'rel_L2': ..., 'Linf': ...}} for
+    each requested snapshot time actually reached during marching, plus
+    'newton_iters': list of per-step iteration counts (diagnostic).
+    """
+    lo, hi = domain
+    h = hi - lo
+
+    M = mass_matrix(N) * jacobian_scale('mass', h)
+    Kv = nu * stiffness_matrix(N) * jacobian_scale('viscous', h)
+    D = deriv_triple_matrix(N) * jacobian_scale('flux', h)  # flux scale is always 1 (SS2.3)
+
+    B = dirichlet_recombination_basis(N)
+    M_tilde = B.T @ M @ B
+    Kv_tilde = B.T @ Kv @ B
+
+    c_lift = constant_dirichlet_lift(N, u_left, u_right)
+    k_lift = B.T @ (Kv @ c_lift)  # constant vector -- lift's own viscous contribution
+
+    def flux_and_jac(a):
+        c = c_lift + B @ a
+        # F_t = (1/2) sum_{i,k} c_i c_k D[i,k,t]  (doc SS2.4's D(c,c)_j)
+        F = 0.5 * torch.einsum('i,k,ikt->t', c, c, D)
+        # dF_t/dc_m = sum_k D[m,k,t] c_k  (D symmetric in its first two indices)
+        J_c = torch.einsum('mkt,k->tm', D, c)
+        return B.T @ F, B.T @ J_c @ B
+
+    # -- initial condition: Galerkin L2 projection of exact_fn(0, .) onto the
+    # trial space, then solved so u(0,x) = u_lift(x) + w(0,x) matches it as
+    # closely as possible while EXACTLY satisfying the boundary values (any a
+    # keeps w vanishing at the boundary, by construction of B) --
+    c_target0 = project_to_legendre(lambda x: exact_fn(0.0, x), domain, N)
+    a = torch.linalg.solve(M_tilde, B.T @ (M @ (c_target0 - c_lift)))
+
+    if snapshot_times is None:
+        snapshot_times = [0.0, 0.25 * T_end, 0.5 * T_end, 0.75 * T_end, T_end]
+    snapshot_times = sorted(snapshot_times)
+
+    x_eval = torch.linspace(lo, hi, n_eval, dtype=DTYPE)
+    xi_eval = 2.0 * (x_eval - lo) / (hi - lo) - 1.0
+    P_eval = legendre_basis(xi_eval, N)
+
+    def evaluate(t, a_vec):
+        c = c_lift + B @ a_vec
+        u_pred = (P_eval * c).sum(dim=-1)
+        u_exact = exact_fn(t, x_eval)
+        diff = u_pred - u_exact
+        l2 = float(torch.sqrt((diff ** 2).mean()))
+        denom = float(torch.sqrt((u_exact ** 2).mean())) + 1e-12
+        return {'c': c, 'rel_L2': l2 / denom, 'Linf': float(diff.abs().max())}
+
+    results = {}
+    snap_idx = 0
+    if snapshot_times and abs(snapshot_times[0]) < 1e-12:
+        results[0.0] = evaluate(0.0, a)
+        snap_idx = 1
+
+    dt = T_end / n_steps
+    t = 0.0
+    newton_iters = []
+    for _ in range(n_steps):
+        F_now, _ = flux_and_jac(a)
+        visc_now = Kv_tilde @ a + k_lift
+
+        a_next = a.clone()
+        for it in range(1, newton_max_iter + 1):
+            F_next, J_next = flux_and_jac(a_next)
+            visc_next = Kv_tilde @ a_next + k_lift
+
+            G = (M_tilde @ (a_next - a)) / dt - 0.5 * ((F_next - visc_next) + (F_now - visc_now))
+            dG = M_tilde / dt - 0.5 * (J_next - Kv_tilde)
+
+            delta = torch.linalg.solve(dG, -G)
+            a_next = a_next + delta
+            if float(delta.abs().max()) < newton_tol:
+                break
+        newton_iters.append(it)
+
+        a = a_next
+        t += dt
+
+        while snap_idx < len(snapshot_times) and t >= snapshot_times[snap_idx] - 1e-9:
+            results[snapshot_times[snap_idx]] = evaluate(snapshot_times[snap_idx], a)
+            snap_idx += 1
+
+    return {'snapshots': results, 'newton_iters': newton_iters}

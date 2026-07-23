@@ -25,6 +25,7 @@ import torch
 from pinns_framework.pgdr import (
     stiffness_matrix,
     transfer_matrices,
+    legendre_basis,
     verify_all,
 )
 
@@ -62,12 +63,37 @@ def main():
     wall = time.perf_counter() - t0
     print(f'verify_all() PASSED in {wall:.2f}s')
 
+    # -- transfer-matrix EXACTNESS (doc SS1.5): a random parent polynomial
+    # restricted to a child sub-cell must equal the child's own exact
+    # Legendre expansion via T^L / T^R -- not just "T^L/T^R individually
+    # match quadrature" (already covered by verify_all above), but the
+    # actual subdivision identity the doc claims is symbolically exact.
+    print('\nchecking transfer-matrix exactness (doc SS1.5, "for a random '
+          'parent polynomial, parent-restricted-to-child minus '
+          'child-expansion simplifies to identically 0") ...')
+    torch.manual_seed(42)
+    N_transfer = 8
+    c_parent = torch.randn(N_transfer, dtype=torch.float64)
+    s = torch.linspace(-1, 1, 400, dtype=torch.float64)
+    P_child_basis = legendre_basis(s, N_transfer)
+
+    transfer_exactness = {}
+    for side, label in ((-1, 'left'), (1, 'right')):
+        xi_parent = (s + side) / 2.0
+        u_ground_truth = (legendre_basis(xi_parent, N_transfer) * c_parent).sum(dim=-1)
+        c_child = transfer_matrices(N_transfer, side) @ c_parent
+        u_transferred = (P_child_basis * c_child).sum(dim=-1)
+        max_diff = float((u_ground_truth - u_transferred).abs().max())
+        transfer_exactness[label] = max_diff
+        print(f'  {label} child: max|parent-restricted - child-expansion| = {max_diff:.3e}')
+
     summary = {
         'stiffness_checks': checks,
         'stiffness_checks_expected': expected,
         'stiffness_checks_match': all_match,
         'verify_all_passed': True,
         'verify_all_wall_s': wall,
+        'transfer_exactness': transfer_exactness,
     }
     with open(os.path.join(RESULTS_DIR, 'ref_tensors_report.json'), 'w') as f:
         json.dump(summary, f, indent=2)

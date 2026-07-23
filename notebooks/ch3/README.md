@@ -1,11 +1,13 @@
 # Chapter 3 experiments — PGDr-PIKAN: a cell-local Legendre basis for KAN trial + Petrov–Galerkin test spaces
 
-**Status note:** this chapter is at the start of its validation ladder. `sc3.0`
-and `sc3.1` below (validation-ladder steps 1–3) are complete and their
-numbers are final. Steps 4–6 — adaptive h-refinement, the nonlinear Burgers
-benchmark solved in marching mode, and the global space–time mode — are
-**not built yet** and are described only as proposed follow-up work, not
-results.
+**Status note:** this chapter is at the start of its validation ladder.
+`sc3.0` and `sc3.1` (validation-ladder steps 1–3) are complete and final.
+`sc3.2` runs the nonlinear Burgers benchmark (step 5's benchmark) but only
+in single-cell form, deliberately staying inside step 3's "no interfaces
+yet" restriction — it is a bridge experiment, not step 5 itself. Genuine
+multi-cell adaptive h-refinement (step 4), multi-cell marching (finishing
+step 5), and the global space–time mode (step 6) are **not built yet** and
+are described only as proposed follow-up work, not results.
 
 Chapter 2 established that what actually gives a Physics-Informed Network
 robustness at high frequency / near shocks is avoiding the second derivative
@@ -37,19 +39,39 @@ Legendre-KAN's output is *exactly* a polynomial of degree `p^L` (the entire
 argument for using a Legendre basis instead of pyKAN's B-splines, which do
 not stay splines on a fixed knot set under composition).
 
-**Results:**
+**What was run, in order:**
 
-- `verify_ref_tensors.py`: all of `M, K, C, T, D, T^L, T^R` match independent
-  quadrature to the requested tolerance; runs in ~5s. Reproduces the design
-  doc's own hand-worked check values exactly — `K11=2, K22=6, K33=12, K44=20,
-  K13=2, K24=6, K35=12`, and the degree-4 `T^L` matrix.
-- `kan_closure_test.py`: for 1-, 2-, and 3-layer Legendre-KANs (degree 4 per
-  edge, so `p^L` = 4, 16, 64 respectively), the max residual between the raw
-  network output and its Legendre re-projection is ≤ ~5e-12 in every case —
-  i.e. machine-zero, confirming the closure argument holds at real
-  (non-toy) depth.
+1. **`verify_ref_tensors.py`** — three checks in one script:
+   - Reprints the design doc's own hand-worked stiffness values
+     (`K11=2, K22=6, K33=12, K44=20, K13=2, K24=6, K35=12`) and the degree-4
+     `T^L` matrix straight from `pinns_framework.pgdr.stiffness_matrix` /
+     `transfer_matrices` — all match exactly.
+   - Calls `pgdr.verify_all()`, which cross-checks `M, K, C, T, D, T^L, T^R`
+     against an *independently implemented* Gauss–Legendre quadrature (a
+     separate numpy code path, not reusing the torch recurrence the rest of
+     the package uses) — passes in ~5s.
+   - A third, more specific check beyond `verify_all()`: takes a random
+     "parent" polynomial (random Legendre coefficients), evaluates it
+     directly on a left/right child sub-cell, and compares that against the
+     child's coefficients obtained via `T^L`/`T^R` and re-expanded — i.e. it
+     tests the actual doc §1.5 claim ("parent-restricted-to-child minus
+     child-expansion simplifies to identically 0"), not just that `T^L`/`T^R`
+     individually match quadrature. Agreement: ~7e-15 (left), ~3e-15 (right).
+2. **`kan_closure_test.py`** — builds 1-, 2-, and 3-layer `LegendreKAN`s at
+   per-edge degree `p ∈ {2,3,4,5,6}` (15 configurations total), evaluates
+   each on a fine grid, re-projects onto the Legendre basis at degree `p^L`
+   via quadrature, and measures the max residual against the raw network
+   output. If closure were only approximate this residual would grow with
+   `p^L`; instead it stays within a couple of decades of float64 round-off
+   (`2.22e-16`) across the whole sweep — from `2.2e-16` at `p^L=2` up to
+   `4.7e-11` at the largest case tested (`p^L=216`, 3 layers, degree 6) — all
+   15/15 pass the `<1e-9` threshold.
+3. **`plot_kan_closure.py`** — plots that sweep: residual vs `p^L`, one line
+   per depth, log-log. The flatness of the lines (not their absolute height)
+   is the actual result — see `figs/sc30_kan_closure.png`.
 
-**Figures/results:** `sc3.0/results/ref_tensors_report.json`,
+**Figures/results:** `sc3.0/figs/sc30_kan_closure.{png,pdf}`,
+`sc3.0/results/ref_tensors_report.json`,
 `sc3.0/results/kan_closure_report.json`.
 
 ---
@@ -71,6 +93,25 @@ latter turned out to be singular here (the raw-Legendre stiffness matrix's
 entries saturate at `min(i,j)`, so its last rows/columns become nearly
 redundant and can't pin down the two highest-degree coefficients no matter
 which two rows get replaced).
+
+**What was run, in order:**
+
+1. **`solve_poisson.py`** — for each `k`, one call to
+   `pgdr.solve_poisson_single_cell`: assemble the scaled stiffness matrix,
+   project `f = k²π²sin(kπx)` onto the Legendre basis via quadrature,
+   recombine into the Dirichlet basis, one `torch.linalg.solve`, done (~2s
+   wall time per `k`, all of it quadrature/linear-algebra, no epochs). It
+   also independently recomputes the stiffness matrix by raw quadrature and
+   compares it to the closed-form one (the doc's step-3 "analytic vs
+   quadrature to machine precision" check), and copies the solved
+   coefficients into a `pgdr.LegendreEdge`'s `theta` to confirm the result
+   literally **is** one KAN layer's output, not just KAN-flavored linear
+   algebra.
+2. **`plot_error_vs_k.py`** — pulls `sc2.3`'s PINN `rel_L2` numbers
+   (`strong`/`weak_projection`/`agnostic`, same `k` sweep) straight from
+   `ch2/sc2.3/results/*_summary.json`, combines them with this experiment's
+   own numbers into `results/comparison_vs_sc23.csv`, and plots both on one
+   log-log chart.
 
 **Results** (`results/summary_all.csv`):
 
@@ -112,23 +153,100 @@ follow-up work (see below).
 
 ---
 
-## 3. Known caveats / proposed follow-up work (not built yet)
+## 3. sc3.2 — single-cell Burgers: where "one cell, one layer" starts to break
+
+**Setup:** the identical benchmark as `ch2/sc2.4` — the viscous-Burgers
+traveling shock with a closed-form exact solution for all `t`
+(`u_L=2, u_R=0`, domain `[-5,5]`, `T_END=1`) — solved via
+`pinns_framework.pgdr.solve_burgers_single_cell`: Crank–Nicolson time-
+marching with Newton's method solving the nonlinear system at each step
+(doc §2.4), still a single cell spanning the whole domain (no interior
+interfaces, so §2.5's flagged open risk still doesn't come up) and still
+one KAN layer (Bubnov–Galerkin, same phase-1 caveat as `sc3.1`). This is
+the first real exercise of `ref_tensors.deriv_triple_matrix` (the nonlinear
+flux tensor `D`) in an actual solve, and of non-homogeneous Dirichlet BCs
+(`u_left ≠ u_right`, handled via `assembly.constant_dirichlet_lift` — the
+domain edges are checked to sit at the exact boundary values to float
+round-off for the whole simulated time window, which is what licenses
+treating the BC as time-constant rather than needing a time-varying lift).
+
+**Two viscosities, deliberately contrasted:**
+
+- `nu=0.02` — identical to `sc2.4`. Shock width `≈ 4·nu/(u_L−u_R) = 0.04`,
+  i.e. **0.4% of the domain width**.
+- `nu=0.2` — 10x milder. Shock width `≈0.4`, i.e. 4% of the domain — the
+  same feature, ten times wider relative to the cell.
+
+**Results** (`results/summary_all.csv`):
+
+| nu | N | mean_L2 | final_L2 | wall time |
+|---|---|---|---|---|
+| 0.02 | 60 | 5.57e-2 | 5.46e-2 | 32s |
+| 0.2 | 40 | 1.83e-3 | 1.76e-3 | 7s |
+
+Newton converges in 3–4 iterations every time step for both cases — the
+nonlinear solve itself is well-behaved; the difference between the two
+rows is entirely about whether the trial space (one global polynomial) can
+*represent* the target, not about solver robustness. Confirmed directly: a
+pure Legendre projection of the exact `t=0` profile (no dynamics at all)
+gives `rel_L2 = 6.74e-2` at `N=40`, `4.74e-2` at `N=60` for `nu=0.02` —
+essentially the same number the full time-marched solve lands on, meaning
+the error is coming entirely from *approximation*, not from time-stepping
+or Newton convergence.
+
+**`figs/sc32_solutions.png`** makes this visible directly: at `nu=0.2` the
+single-cell solution tracks the exact profile to the eye; at `nu=0.02` it
+shows textbook Gibbs-type ringing around the front — a single global
+polynomial cell genuinely cannot represent a feature this localized without
+an impractically large mode count (`N=200` only gets the pure-projection
+error down to `~7e-3`, and generating the nonlinear-term tensor `D` at that
+size is no longer cheap — cubic-ish growth in the sympy/wigner_3j
+generation, ~31s already at `N=60`).
+
+**`figs/sc32_comparison_vs_sc24.png`** — the honest, slightly more nuanced
+comparison against `sc2.4`'s 4 *trained* methods on the harder `nu=0.02`
+case: the single-cell direct solve (`5.57e-2`) is **worse** than `sc2.4`'s
+`strong` (`6.79e-4`) and `weak_projection` (`4.68e-3`) — those PINNs, with a
+global MLP trial space and gradient descent, can concentrate representation
+power near the shock in a way a fixed global polynomial basis cannot — but
+it is actually **better** than `sc2.4`'s `agnostic` (`1.27e-1`) and
+`agnostic_weak_time` (`7.50e-2`), and gets there in ~30 seconds of direct
+linear algebra instead of a training run.
+
+**Takeaway:** this is *not* a bug or a regression from `sc3.1` — it is
+exactly what motivates chapter 3 phase 2. A single global cell is precisely
+the setting the design doc's h-refinement (§4) exists to fix: concentrate
+small, cheap cells where the residual indicator is large (near the shock)
+and leave the rest coarse, rather than paying for a huge global mode count
+everywhere to resolve one narrow feature.
+
+**Figures:** `sc3.2/figs/sc32_{solutions,comparison_vs_sc24}.{png,pdf}`.
+
+---
+
+## 4. Known caveats / proposed follow-up work (not built yet)
 
 - **Bubnov–Galerkin only so far** — see `sc3.1`'s caveat above. Demonstrating
   the actual trial ≠ test Petrov–Galerkin mechanism needs a KAN with depth
   ≥ 2 solved nonlinearly in `theta` (or with inner layers frozen and only the
   outer layer solved directly per the design doc's §3.4 training fork) —
   not attempted yet.
-- **No multi-cell mesh / interface flux yet** — `sc3.1` is deliberately a
-  single cell to sidestep the design doc's flagged open risk (§2.5, the
-  interface flux for the convective and viscous terms at cell boundaries).
-  This is the first thing needed for adaptive h-refinement (step 4) and
-  remains unverified.
-- **No nonlinear (Burgers) benchmark yet** — steps 5–6 of the validation
-  ladder (marching-mode Burgers with a closed-form traveling-shock solution,
-  then the global space–time mode via Kronecker assembly) are not started;
-  `triple_matrix`/`deriv_triple_matrix` in `ref_tensors.py` are verified but
-  unused until then.
+- **No multi-cell mesh / interface flux yet** — `sc3.1` and `sc3.2` are both
+  deliberately a single cell to sidestep the design doc's flagged open risk
+  (§2.5, the interface flux for the convective and viscous terms at cell
+  boundaries). This is the first thing needed for adaptive h-refinement
+  (step 4) and remains unverified. `sc3.2`'s `nu=0.02` result is the
+  concrete demonstration of *why* it's needed: a single global cell cannot
+  resolve a genuinely sharp front, no matter how many modes (see `sc3.2`
+  above) — refinement should let a handful of small cells near the shock do
+  what an impractically large global `N` would otherwise have to.
+- **Marching-mode Burgers exists only in single-cell form** — `sc3.2`
+  exercises Crank–Nicolson + Newton and the nonlinear flux tensor `D`
+  (`ref_tensors.deriv_triple_matrix`) for the first time in a real solve,
+  but step 5 of the validation ladder (proper multi-cell marching) still
+  needs the interface flux above; the global space–time mode (step 6, via
+  Kronecker assembly with the plain triple-product tensor `T`) hasn't been
+  started at all.
 - **Degree growth `p^L`** — not yet a concern at the depths tested (`p^L`
   up to 64 in `sc3.0`), but will need a truncation policy once deeper
   networks are used in a real solve rather than just a closure check.

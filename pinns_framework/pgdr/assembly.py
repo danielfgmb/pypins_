@@ -54,3 +54,22 @@ def dirichlet_recombination_basis(N):
     B[idx, idx] = 1.0
     B[idx + 2, idx] = -1.0
     return B
+
+
+def constant_dirichlet_lift(N, g_left, g_right):
+    """Raw-Legendre coefficients (length N) of the unique degree-1 polynomial
+    u_lift(xi) = c0 + c1*xi with u_lift(-1)=g_left, u_lift(1)=g_right (P_0=1,
+    P_1=xi, all higher modes exactly zero): c0=(g_left+g_right)/2,
+    c1=(g_right-g_left)/2.
+
+    Used to reduce a NON-homogeneous Dirichlet problem (e.g. Burgers with
+    u(lo)=u_left, u(hi)=u_right) to a homogeneous one solved in
+    dirichlet_recombination_basis's {phi_k}: writing u = u_lift + w, w
+    vanishes at both endpoints exactly like every phi_k, so w's coefficients
+    live in the SAME recombined basis as the Poisson case (solve.py).
+    """
+    c = torch.zeros(N, dtype=DTYPE)
+    c[0] = (g_left + g_right) / 2.0
+    if N > 1:
+        c[1] = (g_right - g_left) / 2.0
+    return c

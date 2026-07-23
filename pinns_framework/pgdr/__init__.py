@@ -17,8 +17,8 @@ from .kan import (
     project_to_legendre,
     closure_residual,
 )
-from .assembly import jacobian_scale, dirichlet_recombination_basis
-from .solve import solve_poisson_single_cell
+from .assembly import jacobian_scale, dirichlet_recombination_basis, constant_dirichlet_lift
+from .solve import solve_poisson_single_cell, solve_burgers_single_cell
 
 __all__ = [
     "mass_matrix",
@@ -38,5 +38,7 @@ __all__ = [
     "closure_residual",
     "jacobian_scale",
     "dirichlet_recombination_basis",
+    "constant_dirichlet_lift",
     "solve_poisson_single_cell",
+    "solve_burgers_single_cell",
 ]
