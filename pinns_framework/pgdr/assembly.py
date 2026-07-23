@@ -96,3 +96,33 @@ def sipg_penalty(N, h, penalty_coeff=10.0):
     notebooks/ch3/sc3.3, not fixed in advance.
     """
     return penalty_coeff * (N ** 2) / h
+
+
+def godunov_flux_burgers(u_left, u_right):
+    """Exact Godunov (Riemann-problem) numerical flux for Burgers' flux
+    f(u) = u^2/2 at one interface (design doc SS2.5's flagged risk for the
+    nonlinear case -- unlike linear advection's trivial sign-of-a upwind,
+    upwind_trace above, the flux here depends on whether the local Riemann
+    problem is a shock or a rarefaction):
+
+        u_left >= u_right : shock, speed s=(u_left+u_right)/2
+                             -> f(u_left) if s>=0 else f(u_right)
+        u_left <  u_right : rarefaction
+                             -> f(u_left)  if u_left  >= 0
+                             -> f(u_right) if u_right <= 0
+                             -> 0 (sonic point, f(0)=0)  otherwise
+
+    u_left, u_right are 0-dim tensors (traces built from the coefficient
+    vector, so differentiable); the branch actually taken is smooth in its
+    inputs, which is all Newton's method needs -- the true flux's non-
+    smoothness is a measure-zero set of interface states, standard for
+    Godunov fluxes under Newton/Picard iteration.
+    """
+    if u_left >= u_right:
+        s = 0.5 * (u_left + u_right)
+        return 0.5 * u_left ** 2 if s >= 0 else 0.5 * u_right ** 2
+    if u_left >= 0:
+        return 0.5 * u_left ** 2
+    if u_right <= 0:
+        return 0.5 * u_right ** 2
+    return torch.zeros_like(u_left)

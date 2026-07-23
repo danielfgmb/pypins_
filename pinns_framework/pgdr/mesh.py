@@ -37,8 +37,11 @@ Jacobian.
 import numpy as np
 import torch
 
-from .ref_tensors import DTYPE, stiffness_matrix, convection_matrix, endpoint_values, legendre_and_deriv, legendre_basis
-from .assembly import jacobian_scale, upwind_trace, sipg_penalty
+from .ref_tensors import (
+    DTYPE, mass_matrix, stiffness_matrix, convection_matrix, deriv_triple_matrix,
+    endpoint_values, legendre_and_deriv, legendre_basis,
+)
+from .assembly import jacobian_scale, upwind_trace, sipg_penalty, godunov_flux_burgers
 
 
 class Mesh1D:
@@ -175,3 +178,138 @@ def assemble_advection_diffusion(mesh, N, a, nu, f_fn, g_left, g_right, penalty_
     b = -res(zeros)
     A = torch.autograd.functional.jacobian(res, zeros)
     return A, b
+
+
+# ── nonlinear multi-cell Burgers (phase 2c, finishing validation-ladder ──────
+#    step 5) -- u_t + (u^2/2)_x = nu*u_xx, Crank-Nicolson in time, Newton per
+#    step. Mirrors `residual`'s per-cell/per-face structure exactly (same
+#    ghost-state boundary convention, same ordering of terms), swapping the
+#    linear-advection pieces (convection_matrix / upwind_trace) for their
+#    nonlinear counterparts (deriv_triple_matrix / godunov_flux_burgers).
+
+def burgers_nonmass_residual(c_flat, mesh, N, nu, g_left, g_right, penalty_coeff):
+    """Everything in the Burgers weak-form residual EXCEPT the mass/time
+    term: volume nonlinear flux + viscous, plus interior and boundary
+    (ghost-state) interface contributions (Godunov advective + SIPG
+    viscous). Used by burgers_residual_step under Crank-Nicolson averaging.
+
+    Sign convention derived the same way as `residual`'s (IBP the PDE the
+    same way, u_t + (u^2/2)_x - nu*u_xx = 0):
+        d/dt int(u psi) - int((u^2/2) psi' ) dx + nu*int(u' psi') dx
+            + [(u^2/2)*psi - nu*u'*psi]_bdry = 0
+    i.e. the volume flux term here is -(1/2)*D(c,c) (same sign slot as
+    `residual`'s -a*C.T@c), and each face's numerical flux value IS the
+    Godunov flux directly (no separate "a*" factor, since Burgers' flux is
+    already u^2/2, not a linear multiple of a trace).
+    """
+    n_cells = mesh.n_cells
+    K = stiffness_matrix(N)
+    D = deriv_triple_matrix(N)
+    left_v, right_v = endpoint_values(N)
+    xi_ends = torch.tensor([-1.0, 1.0], dtype=DTYPE)
+    _, dP_ends = legendre_and_deriv(xi_ends, N)
+    dleft_v, dright_v = dP_ends[0], dP_ends[1]
+
+    def c_of(e):
+        return c_flat[e * N:(e + 1) * N]
+
+    R_parts = [None] * n_cells
+
+    for e in range(n_cells):
+        h_e = mesh.h(e)
+        ce = c_of(e)
+        r = -0.5 * torch.einsum('i,k,ikt->t', ce, ce, D)             # -int (u^2/2) psi' dx
+        r = r + nu * jacobian_scale('viscous', h_e) * (K @ ce)       # +nu int u' psi' dx
+        R_parts[e] = r
+
+    for i in range(1, n_cells):
+        e_L, e_R = i - 1, i
+        h_L, h_R = mesh.h(e_L), mesh.h(e_R)
+        cL, cR = c_of(e_L), c_of(e_R)
+
+        uL = right_v @ cL
+        uR = left_v @ cR
+        uxL = (2.0 / h_L) * (dright_v @ cL)
+        uxR = (2.0 / h_R) * (dleft_v @ cR)
+        jump_u = uL - uR
+        avg_ux = 0.5 * (uxL + uxR)
+        sigma = sipg_penalty(N, 0.5 * (h_L + h_R), penalty_coeff)
+        f_hat = godunov_flux_burgers(uL, uR)
+
+        R_parts[e_L] = R_parts[e_L] + f_hat * right_v
+        R_parts[e_R] = R_parts[e_R] - f_hat * left_v
+
+        R_parts[e_L] = R_parts[e_L] + (
+            -nu * avg_ux * right_v - nu * 0.5 * (dright_v * (2.0 / h_L)) * jump_u + sigma * jump_u * right_v
+        )
+        R_parts[e_R] = R_parts[e_R] + (
+            nu * avg_ux * left_v - nu * 0.5 * (dleft_v * (2.0 / h_R)) * jump_u - sigma * jump_u * left_v
+        )
+
+    h0 = mesh.h(0)
+    c0 = c_of(0)
+    u0 = left_v @ c0
+    ux0 = (2.0 / h0) * (dleft_v @ c0)
+    jump0 = g_left - u0
+    sigma0 = sipg_penalty(N, h0, penalty_coeff)
+    f_hat0 = godunov_flux_burgers(torch.as_tensor(g_left, dtype=DTYPE), u0)
+    R_parts[0] = R_parts[0] + (-f_hat0 * left_v)
+    R_parts[0] = R_parts[0] + (nu * ux0 * left_v - nu * (dleft_v * (2.0 / h0)) * jump0 - sigma0 * jump0 * left_v)
+
+    hN = mesh.h(n_cells - 1)
+    cN = c_of(n_cells - 1)
+    uN = right_v @ cN
+    uxN = (2.0 / hN) * (dright_v @ cN)
+    jumpN = uN - g_right
+    sigmaN = sipg_penalty(N, hN, penalty_coeff)
+    f_hatN = godunov_flux_burgers(uN, torch.as_tensor(g_right, dtype=DTYPE))
+    R_parts[-1] = R_parts[-1] + (f_hatN * right_v)
+    R_parts[-1] = R_parts[-1] + (-nu * uxN * right_v - nu * (dright_v * (2.0 / hN)) * jumpN + sigmaN * jumpN * right_v)
+
+    return torch.cat(R_parts)
+
+
+def burgers_residual_step(c_next_flat, c_now_flat, mesh, N, nu, dt, g_left, g_right, penalty_coeff):
+    """Crank-Nicolson residual for one time step: zero when c_next_flat is
+    the correct next-step solution given c_now_flat."""
+    n_cells = mesh.n_cells
+    M = mass_matrix(N)
+
+    def c_of(c_flat, e):
+        return c_flat[e * N:(e + 1) * N]
+
+    mass_parts = []
+    for e in range(n_cells):
+        h_e = mesh.h(e)
+        ce_next, ce_now = c_of(c_next_flat, e), c_of(c_now_flat, e)
+        mass_parts.append(jacobian_scale('mass', h_e) * (M @ (ce_next - ce_now)) / dt)
+    mass_term = torch.cat(mass_parts)
+
+    nonmass_next = burgers_nonmass_residual(c_next_flat, mesh, N, nu, g_left, g_right, penalty_coeff)
+    nonmass_now = burgers_nonmass_residual(c_now_flat, mesh, N, nu, g_left, g_right, penalty_coeff)
+
+    return mass_term + 0.5 * (nonmass_next + nonmass_now)
+
+
+def solve_burgers_step_newton(c_now_flat, mesh, N, nu, dt, g_left, g_right, penalty_coeff,
+                               newton_tol=1e-10, newton_max_iter=20):
+    """One Crank-Nicolson step, solved via Newton's method with the Jacobian
+    from torch.autograd.functional.jacobian (same safety-over-hand-
+    derivation trade-off as assemble_advection_diffusion -- Godunov's case
+    logic makes a hand-derived Jacobian considerably more error-prone here).
+    Returns (c_next_flat, n_iters_used).
+    """
+    c_next = c_now_flat.clone()
+
+    def res(c):
+        return burgers_residual_step(c, c_now_flat, mesh, N, nu, dt, g_left, g_right, penalty_coeff)
+
+    it = 0
+    for it in range(1, newton_max_iter + 1):
+        R = res(c_next)
+        J = torch.autograd.functional.jacobian(res, c_next)
+        delta = torch.linalg.solve(J, -R)
+        c_next = c_next + delta
+        if float(delta.abs().max()) < newton_tol:
+            break
+    return c_next, it

@@ -339,22 +339,112 @@ could never get for its sharp shock.
 
 ---
 
-## 6. Known caveats / proposed follow-up work (not built yet)
+## 6. sc3.5 — finishing validation-ladder step 5: the shock case, for real
+
+**The question this answers:** `sc3.2` showed a single global cell cannot
+resolve `sc2.4`'s actual shock viscosity (`nu=0.02`) — Gibbs ringing,
+`mean_L2≈5.6e-2`. `sc3.3`/`sc3.4` then built and validated multi-cell
+interfaces and adaptive refinement, but deliberately only on a linear,
+steady problem. This experiment combines everything on the real,
+originally-failing case: does concentrating resolution where the shock
+actually is fix it?
+
+**New pieces, both in `pinns_framework/pgdr/`:**
+
+- **`assembly.godunov_flux_burgers`** — Burgers' flux `f(u)=u²/2` is
+  nonlinear and can produce a shock *or* a rarefaction at a given
+  interface, unlike linear advection's trivial sign-of-`a` upwind
+  (`sc3.3`'s `upwind_trace`). This is the actual exact Riemann-problem
+  (Godunov) solver: shock → whichever side its speed `(u_L+u_R)/2` comes
+  from; rarefaction → `f(u_L)`, `f(u_R)`, or `0` at the sonic point,
+  depending on the signs of `u_L`, `u_R`. Unit-checked against all four
+  cases (shock both directions, rarefaction both signs, transonic) before
+  use, including that autograd differentiates correctly within whichever
+  branch is taken.
+- **`mesh.burgers_nonmass_residual` / `burgers_residual_step` /
+  `solve_burgers_step_newton`** — the multi-cell, Crank–Nicolson,
+  nonlinear counterpart to `mesh.residual` (`sc3.3`'s linear one):
+  `deriv_triple_matrix` instead of `convection_matrix` for the volume flux,
+  the Godunov flux instead of `upwind_trace` at every interface (interior
+  *and* boundary, same ghost-state convention as `sc3.3`), same SIPG
+  viscous treatment. Newton's method at each step again gets its Jacobian
+  from `torch.autograd.functional.jacobian` rather than a hand-derived one
+  — deliberately, since Godunov's case logic makes hand-differentiating it
+  considerably more error-prone than `solve_burgers_single_cell`'s already-
+  analytic single-cell Jacobian (design doc §2.4).
+
+**Verified before trusting it on a real mesh:** at `n_cells=1`, this new
+machinery reproduces `solve_burgers_single_cell`'s existing accuracy almost
+exactly — `1.771e-03` vs. `1.758e-03` at `nu=0.2`, and `5.464e-02` vs.
+`5.464e-02` (matching to displayed precision) at `nu=0.02`. (Not
+*bit-identical* — the two use genuinely different boundary treatments,
+`sc3.2`'s exact Dirichlet recombination vs. this phase's weak ghost-state
+SIPG/Godunov, consistent with `sc3.3`'s phase 2a note — but both converge
+to the same accurate answer, which is the meaningful check.)
+
+**Mesh: static and graded, not full dynamic AMR.** The exact solution's
+trajectory is known in closed form (the shock translates rigidly from
+`x=0` at `t=0` to `x=1` at `t=1`, same profile throughout) — rather than
+generalizing `refine.py`'s indicator to a moving nonlinear target and
+re-adapting the mesh mid-march (real added complexity on top of everything
+else new here), this experiment builds one graded mesh **once**, before
+marching starts, and keeps it fixed: fine, uniform cells (`h=0.2`) tiling
+`[-0.5, 1.5]` (comfortably covering the shock's whole path), coarse cells
+covering the rest of `[-5,5]`. `N=15` throughout (calibrated first: a
+single `0.2`-wide cell at `N=15` achieves `1.1e-4` pure-projection error
+against the exact profile, no dynamics — printed by
+`solve_burgers_mesh.py` before it runs anything). This is a narrower claim
+than genuine dynamic AMR, stated as such — full mid-march re-adaptation is
+follow-up work, not attempted here.
+
+**Results** (`results/sc35_nu0p02_summary.json`, 16 cells, 240 total DOF,
+`n_steps=40`, ~96s wall time):
+
+| t | rel_L2 | Linf |
+|---|---|---|
+| 0.00 | 1.35e-05 | 2.22e-04 |
+| 0.25 | 1.82e-03 | 4.32e-02 |
+| 0.50 | 1.78e-03 | 4.34e-02 |
+| 0.75 | 1.74e-03 | 4.34e-02 |
+| 1.00 | 1.71e-03 | 4.34e-02 |
+
+`mean_L2 = 1.41e-3`, `final_L2 = 1.71e-3` — a **~40x improvement** over
+`sc3.2`'s single-cell `5.57e-2` on the identical benchmark.
+`figs/sc35_solutions.png` is the direct visual counterpart to
+`sc3.2/figs/sc32_solutions.png`'s ringing `nu=0.02` panel: no ringing here.
+
+**`figs/sc35_comparison.png`** — against `sc2.4`'s 4 trained methods: this
+result **beats** `weak_projection` (`4.68e-3`), `agnostic` (`1.27e-1`), and
+`agnostic_weak_time` (`7.50e-2`), and comes within ~2x of the best trained
+method, `strong` (`6.79e-4`) — all from ~96 seconds of direct linear
+algebra, no training loop, versus `sc2.4`'s actual training runs. Honest
+framing: this doesn't fully close the gap to `strong`, and the mesh here
+was informed by knowing the exact trajectory in advance rather than
+discovered by a blind adaptive loop — but it directly confirms the
+chapter's central claim, that concentrating resolution where the shock
+actually is (rather than one huge global polynomial, `sc3.2`) is what was
+missing.
+
+**Figures:** `sc3.5/figs/sc35_{solutions,comparison}.{png,pdf}`.
+
+---
+
+## 7. Known caveats / proposed follow-up work (not built yet)
 
 - **Bubnov–Galerkin only so far** — see `sc3.1`'s caveat above. Demonstrating
   the actual trial ≠ test Petrov–Galerkin mechanism needs a KAN with depth
   ≥ 2 solved nonlinearly in `theta` (or with inner layers frozen and only the
   outer layer solved directly per the design doc's §3.4 training fork) —
   not attempted yet.
-- **Multi-cell interfaces and refinement are linear-only so far** — `sc3.3`
-  (interface flux) and `sc3.4` (h-refinement) both use the steady linear
-  advection-diffusion operator, specifically to validate the interface/
-  refinement machinery without nonlinear-solve complexity confounding
-  things. `sc3.2`'s `nu=0.02` Burgers failure is exactly the case this
-  machinery is meant to fix, but that retry — multi-cell, adaptive, and
-  nonlinear (Newton coupled across cells, plus a real Godunov/upwind flux
-  for `u²/2` instead of linear-advection's trivial upwind) — hasn't been
-  run yet. That's phase 2c, the natural next step.
+- **Refinement is static, not dynamic, for the nonlinear case** — `sc3.5`
+  fixed `sc3.2`'s Burgers failure with a genuine multi-cell, nonlinear,
+  Godunov+SIPG+Newton solve, but on a mesh graded once in advance from
+  knowing the exact solution's trajectory, not by running `refine.py`'s
+  indicator loop against the (moving, nonlinear) Burgers residual and
+  re-adapting mid-march. Generalizing `compute_indicators` to accept an
+  arbitrary residual function and re-triggering it during time-marching is
+  the natural next step, needed for any problem where the hard region's
+  location isn't known analytically in advance.
 - **Global space–time mode (step 6)** — via Kronecker assembly with the
   plain triple-product tensor `T` (`ref_tensors.triple_matrix`, verified
   since `sc3.0`, still otherwise unused) — hasn't been started at all.

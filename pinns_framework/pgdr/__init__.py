@@ -23,8 +23,15 @@ from .assembly import (
     constant_dirichlet_lift,
     upwind_trace,
     sipg_penalty,
+    godunov_flux_burgers,
 )
-from .mesh import Mesh1D, assemble_advection_diffusion
+from .mesh import (
+    Mesh1D,
+    assemble_advection_diffusion,
+    burgers_nonmass_residual,
+    burgers_residual_step,
+    solve_burgers_step_newton,
+)
 from .refine import compute_indicators, dorfler_mark, refine_mesh
 from .solve import (
     solve_poisson_single_cell,
@@ -53,8 +60,12 @@ __all__ = [
     "constant_dirichlet_lift",
     "upwind_trace",
     "sipg_penalty",
+    "godunov_flux_burgers",
     "Mesh1D",
     "assemble_advection_diffusion",
+    "burgers_nonmass_residual",
+    "burgers_residual_step",
+    "solve_burgers_step_newton",
     "compute_indicators",
     "dorfler_mark",
     "refine_mesh",

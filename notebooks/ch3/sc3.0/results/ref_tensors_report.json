@@ -19,7 +19,7 @@
   },
   "stiffness_checks_match": true,
   "verify_all_passed": true,
-  "verify_all_wall_s": 4.164217135868967,
+  "verify_all_wall_s": 4.214821106288582,
   "transfer_exactness": {
     "left": 7.327471962526033e-15,
     "right": 2.6645352591003757e-15
