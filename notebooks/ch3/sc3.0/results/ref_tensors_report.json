@@ -1,0 +1,23 @@
+{
+  "stiffness_checks": {
+    "K11": 2.0,
+    "K22": 6.0,
+    "K33": 12.0,
+    "K44": 20.0,
+    "K13": 2.0,
+    "K24": 6.0,
+    "K35": 12.0
+  },
+  "stiffness_checks_expected": {
+    "K11": 2,
+    "K22": 6,
+    "K33": 12,
+    "K44": 20,
+    "K13": 2,
+    "K24": 6,
+    "K35": 12
+  },
+  "stiffness_checks_match": true,
+  "verify_all_passed": true,
+  "verify_all_wall_s": 5.175715247169137
+}

@@ -1,0 +1,46 @@
+{
+  "degree": 4,
+  "domain": [
+    -1.0,
+    1.0
+  ],
+  "cases": [
+    {
+      "label": "1-layer (Bubnov-Galerkin case, phase 1)",
+      "widths": [
+        1,
+        1
+      ],
+      "degree": 4,
+      "p_pow_L": 4,
+      "residual": 1.8596235662471372e-15,
+      "passed": true
+    },
+    {
+      "label": "2-layer",
+      "widths": [
+        1,
+        2,
+        1
+      ],
+      "degree": 4,
+      "p_pow_L": 16,
+      "residual": 1.8846035843012032e-13,
+      "passed": true
+    },
+    {
+      "label": "3-layer",
+      "widths": [
+        1,
+        2,
+        2,
+        1
+      ],
+      "degree": 4,
+      "p_pow_L": 64,
+      "residual": 5.078104603484235e-12,
+      "passed": true
+    }
+  ],
+  "all_passed": true
+}

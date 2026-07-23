@@ -1,0 +1,42 @@
+from .ref_tensors import (
+    mass_matrix,
+    stiffness_matrix,
+    convection_matrix,
+    endpoint_values,
+    triple_matrix,
+    deriv_triple_matrix,
+    transfer_matrices,
+    legendre_basis,
+    legendre_and_deriv,
+    verify_all,
+)
+from .kan import (
+    LegendreEdge,
+    LegendreKANLayer,
+    LegendreKAN,
+    project_to_legendre,
+    closure_residual,
+)
+from .assembly import jacobian_scale, dirichlet_recombination_basis
+from .solve import solve_poisson_single_cell
+
+__all__ = [
+    "mass_matrix",
+    "stiffness_matrix",
+    "convection_matrix",
+    "endpoint_values",
+    "triple_matrix",
+    "deriv_triple_matrix",
+    "transfer_matrices",
+    "legendre_basis",
+    "legendre_and_deriv",
+    "verify_all",
+    "LegendreEdge",
+    "LegendreKANLayer",
+    "LegendreKAN",
+    "project_to_legendre",
+    "closure_residual",
+    "jacobian_scale",
+    "dirichlet_recombination_basis",
+    "solve_poisson_single_cell",
+]
